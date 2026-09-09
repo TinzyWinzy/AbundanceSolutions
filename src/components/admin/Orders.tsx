@@ -1,7 +1,8 @@
 import { usePowerSync } from '@powersync/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { InventoryAsset, Order } from '@/lib/powersync/AppSchema';
-import { createInvoice, updateOrderStatus } from '@/lib/powersync/mutations';
+import { createInvoice, deliverOrder, updateOrderStatus } from '@/lib/powersync/mutations';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useLatestRate } from '@/hooks/useInvoices';
 import { ORDER_STATUSES, useOrderItems, useOrders } from '@/hooks/useOrders';
@@ -9,8 +10,9 @@ import { nextInvoiceNumber } from '@/utils/invoices';
 import { formatDate, formatUSD } from '@/utils/format';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Input, Select } from '@/components/ui/Field';
 import { Modal } from '@/components/ui/Modal';
-import { EmptyState, Spinner } from '@/components/ui/States';
+import { EmptyState, RowsSkeleton } from '@/components/ui/States';
 
 const VAT_RATE = 0.15;
 
@@ -23,8 +25,23 @@ export function Orders({
 }) {
   const { orders, isLoading } = useOrders();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   const openCount = orders.filter((o) => o.status === 'pending').length;
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return orders.filter((o) => {
+      if (statusFilter && (o.status ?? '') !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        (o.reference ?? '').toLowerCase().includes(q) ||
+        (o.customer_name ?? '').toLowerCase().includes(q) ||
+        (o.customer_phone ?? '').replace(/\D/g, '').includes(q.replace(/\D/g, ''))
+      );
+    });
+  }, [orders, query, statusFilter]);
 
   return (
     <div>
@@ -32,13 +49,39 @@ export function Orders({
         {openCount} pending order{openCount === 1 ? '' : 's'} · {orders.length} total
       </p>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <Input
+          type="search"
+          placeholder="Search reference, customer, phone…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search orders"
+          style={{ flex: 1 }}
+        />
+        <Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter by status"
+          style={{ width: 'auto' }}
+        >
+          <option value="">All</option>
+          {ORDER_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </Select>
+      </div>
+
       {isLoading ? (
-        <Spinner />
+        <RowsSkeleton rows={5} cols={5} />
       ) : orders.length === 0 ? (
         <EmptyState
           title="No orders yet"
           message="Web checkout orders appear here once customers place them."
         />
+      ) : visible.length === 0 ? (
+        <EmptyState title="No matches" message="Try a different search or status." />
       ) : (
         <div className="table-wrap">
           <table className="table">
@@ -52,7 +95,7 @@ export function Orders({
               </tr>
             </thead>
             <tbody>
-              {orders.map((order) => (
+              {visible.map((order) => (
                 <tr
                   key={order.id}
                   onClick={() => setSelectedId(order.id)}
@@ -113,7 +156,17 @@ function OrderDetailModal({
     setSaving(true);
     setError(null);
     try {
-      await updateOrderStatus(db, order.id, status);
+      if (status === 'delivered' && order.status !== 'delivered') {
+        // First entry into delivered: decrement stock once, atomically.
+        await deliverOrder(
+          db,
+          order.id,
+          items.map((i) => ({ assetId: i.asset_id, quantity: i.quantity ?? 1 }))
+        );
+      } else {
+        await updateOrderStatus(db, order.id, status);
+      }
+      toast(`Order ${order.reference ?? ''} → ${status}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update status.');
     } finally {
@@ -151,6 +204,7 @@ function OrderDetailModal({
         appliedRateZig: rate.official_rate ?? 1,
         validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
       });
+      toast('Invoice created from order');
       onInvoiced();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create invoice.');

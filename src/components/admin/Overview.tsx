@@ -6,7 +6,15 @@ import { useOrders } from '@/hooks/useOrders';
 import { formatDate, formatUSD } from '@/utils/format';
 import { Spinner } from '@/components/ui/States';
 
-export type AdminTab = 'overview' | 'inventory' | 'logs' | 'invoices' | 'orders';
+export type AdminTab =
+  | 'overview'
+  | 'inventory'
+  | 'logs'
+  | 'invoices'
+  | 'orders'
+  | 'customers'
+  | 'team'
+  | 'settings';
 
 function startOfTodayUTC(): string {
   const d = new Date();
@@ -15,7 +23,6 @@ function startOfTodayUTC(): string {
 }
 
 export function Overview({ onNavigate }: { onNavigate: (tab: AdminTab) => void }) {
-  const status = useStatus();
   const { orders } = useOrders();
   const { invoices, isLoading } = useInvoices();
   const { receipts } = useAllReceipts();
@@ -68,30 +75,11 @@ export function Overview({ onNavigate }: { onNavigate: (tab: AdminTab) => void }
     };
   }, [orders, invoices, receipts, lowStock]);
 
-  const syncAttention =
-    !status?.connected || status?.hasSynced === false || !!status?.uploadError;
-
   if (isLoading) return <Spinner />;
 
   return (
     <div>
-      {syncAttention ? (
-        <div
-          className="card"
-          style={{
-            padding: 12,
-            marginBottom: 12,
-            borderLeft: '4px solid var(--danger)',
-            fontSize: '0.88rem'
-          }}
-          role="alert"
-        >
-          <strong>Sync needs attention.</strong>{' '}
-          {status?.uploadError || status?.downloadError
-            ? 'A sync error occurred — check your connection, then reopen the app.'
-            : 'Changes are waiting to upload. Reconnect to sync.'}
-        </div>
-      ) : null}
+      <SyncCard />
 
       <div style={{ fontWeight: 800, marginBottom: 8 }}>Needs your attention</div>
       <div
@@ -173,6 +161,47 @@ export function Overview({ onNavigate }: { onNavigate: (tab: AdminTab) => void }
           </div>
         </button>
       </div>
+    </div>
+  );
+}
+
+function SyncCard() {
+  const status = useStatus();
+
+  const connected = status?.connected ?? false;
+  const syncing = status?.downloading || status?.uploading || status?.hasSynced === false;
+  const error = status?.uploadError ?? status?.downloadError ?? null;
+  const lastSynced = status?.lastSyncedAt;
+
+  const dot = !connected ? '#f59e0b' : error ? '#dc2626' : syncing ? '#16a34a' : '#16a34a';
+  const label = !connected
+    ? 'Offline — changes queue locally'
+    : error
+      ? 'Sync error — working locally'
+      : syncing
+        ? 'Syncing…'
+        : 'Synced';
+
+  return (
+    <div
+      className="card"
+      style={{ padding: 12, marginBottom: 12, fontSize: '0.85rem' }}
+      role="status"
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="sync-dot" style={{ background: dot }} />
+        <strong>{label}</strong>
+        {lastSynced ? (
+          <span style={{ color: 'var(--text-muted)' }}>
+            · Last synced {formatDate(lastSynced.toISOString())}
+          </span>
+        ) : null}
+      </div>
+      {error ? (
+        <div style={{ color: 'var(--danger)', marginTop: 6 }}>
+          {error.message}. Reconnect, then reopen the app to retry.
+        </div>
+      ) : null}
     </div>
   );
 }

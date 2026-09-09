@@ -8,12 +8,15 @@ import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/States';
 import { InventoryTable } from './InventoryTable';
 import { InventoryForm } from './InventoryForm';
+import { Customers } from './Customers';
 import { FinancialLogTable } from './FinancialLogTable';
 import { FinancialLogForm } from './FinancialLogForm';
 import { InventoryEditForm } from './InventoryEditForm';
 import { Invoices } from './Invoices';
 import { Orders } from './Orders';
 import { Overview, type AdminTab } from './Overview';
+import { Settings } from './Settings';
+import { Team } from './Team';
 import type { InventoryAsset } from '@/lib/powersync/AppSchema';
 
 export function Dashboard() {
@@ -108,6 +111,24 @@ export function Dashboard() {
           >
             Orders
           </button>
+          <button
+            className={`btn ${tab === 'customers' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setTab('customers')}
+          >
+            Customers
+          </button>
+          <button
+            className={`btn ${tab === 'team' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setTab('team')}
+          >
+            Team
+          </button>
+          <button
+            className={`btn ${tab === 'settings' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setTab('settings')}
+          >
+            Settings
+          </button>
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
@@ -129,8 +150,14 @@ export function Dashboard() {
         <FinancialLogTable logs={logs} />
       ) : tab === 'invoices' ? (
         <Invoices assets={assets} />
-      ) : (
+      ) : tab === 'orders' ? (
         <Orders assets={assets} onInvoiced={() => setTab('invoices')} />
+      ) : tab === 'customers' ? (
+        <Customers />
+      ) : tab === 'team' ? (
+        <Team />
+      ) : (
+        <Settings />
       )}
 
       <Modal open={inventoryModal} title="Add equipment" onClose={() => setInventoryModal(false)}>

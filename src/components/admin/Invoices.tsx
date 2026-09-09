@@ -1,14 +1,16 @@
 import { usePowerSync } from '@powersync/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { InventoryAsset, ProFormaInvoice } from '@/lib/powersync/AppSchema';
 import {
   cancelInvoice,
   createInvoice,
-  recordReceipt,
+  recordReceiptWithLog,
   saveExchangeRate,
   type InvoiceLineInput
 } from '@/lib/powersync/mutations';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrganization } from '@/hooks/useOrg';
+import { toast } from '@/lib/toast';
 import {
   receivedUsd,
   useInvoiceLines,
@@ -28,18 +30,35 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Field, Input, Select } from '@/components/ui/Field';
 import { Modal } from '@/components/ui/Modal';
-import { EmptyState, Spinner } from '@/components/ui/States';
+import { EmptyState, RowsSkeleton } from '@/components/ui/States';
+import { ReceiptPrintModal } from './ReceiptPrint';
 
 export function Invoices({ assets }: { assets: InventoryAsset[] }) {
   const { invoices, isLoading } = useInvoices();
   const { rate } = useLatestRate();
+  const { organization } = useOrganization();
   const [builderOpen, setBuilderOpen] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   const openCount = invoices.filter((i) =>
     ['draft', 'issued', 'partially_paid'].includes(i.status ?? '')
   ).length;
+
+  const visibleInvoices = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return invoices.filter((inv) => {
+      if (statusFilter && (inv.status ?? '') !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        (inv.invoice_number ?? '').toLowerCase().includes(q) ||
+        (inv.customer_name ?? '').toLowerCase().includes(q) ||
+        (inv.customer_phone ?? '').replace(/\D/g, '').includes(q.replace(/\D/g, ''))
+      );
+    });
+  }, [invoices, query, statusFilter]);
 
   return (
     <div>
@@ -79,13 +98,39 @@ export function Invoices({ assets }: { assets: InventoryAsset[] }) {
         {openCount} open invoice{openCount === 1 ? '' : 's'} · {invoices.length} total
       </p>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <Input
+          type="search"
+          placeholder="Search number, customer, phone…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search invoices"
+          style={{ flex: 1 }}
+        />
+        <Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter by status"
+          style={{ width: 'auto' }}
+        >
+          <option value="">All statuses</option>
+          <option value="draft">Draft</option>
+          <option value="issued">Issued</option>
+          <option value="partially_paid">Partially paid</option>
+          <option value="paid">Paid</option>
+          <option value="cancelled">Cancelled</option>
+        </Select>
+      </div>
+
       {isLoading ? (
-        <Spinner />
+        <RowsSkeleton rows={5} cols={4} />
       ) : invoices.length === 0 ? (
         <EmptyState
           title="No invoices yet"
           message="Issue your first pro-forma invoice to a customer."
         />
+      ) : visibleInvoices.length === 0 ? (
+        <EmptyState title="No matches" message="Try a different search or status." />
       ) : (
         <div className="table-wrap">
           <table className="table">
@@ -98,7 +143,7 @@ export function Invoices({ assets }: { assets: InventoryAsset[] }) {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => (
+              {visibleInvoices.map((inv) => (
                 <tr
                   key={inv.id}
                   onClick={() => setSelectedId(inv.id)}
@@ -121,6 +166,7 @@ export function Invoices({ assets }: { assets: InventoryAsset[] }) {
         <InvoiceBuilder
           assets={assets}
           defaultRate={rate?.official_rate ?? null}
+          defaultVat={organization?.default_vat_rate ?? 15}
           onDone={() => setBuilderOpen(false)}
         />
       </Modal>
@@ -157,6 +203,7 @@ function RateForm({ onDone }: { onDone: () => void }) {
     setSaving(true);
     try {
       await saveExchangeRate(db, profile.organization_id, user.id, rate);
+      toast(`Day rate set: ${rate}`);
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save.');
@@ -193,10 +240,12 @@ interface BuilderLine extends InvoiceLineInput {
 function InvoiceBuilder({
   assets,
   defaultRate,
+  defaultVat,
   onDone
 }: {
   assets: InventoryAsset[];
   defaultRate: number | null;
+  defaultVat: number;
   onDone: () => void;
 }) {
   const db = usePowerSync();
@@ -205,7 +254,8 @@ function InvoiceBuilder({
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerTaxId, setCustomerTaxId] = useState('');
   const [rate, setRate] = useState(defaultRate != null ? String(defaultRate) : '');
-  const [vatPct, setVatPct] = useState('15');
+  const [vatPct, setVatPct] = useState(String(defaultVat));
+  const [vatTouched, setVatTouched] = useState(false);
   const [validDays, setValidDays] = useState('30');
   const [lines, setLines] = useState<BuilderLine[]>([]);
   const [saving, setSaving] = useState(false);
@@ -216,6 +266,11 @@ function InvoiceBuilder({
     () => computeTotals(lines, Number.isNaN(rateNum) ? 0 : rateNum, Number(vatPct) / 100 || 0),
     [lines, rateNum, vatPct]
   );
+
+  // Adopt the org default VAT until the user edits the field.
+  useEffect(() => {
+    if (!vatTouched) setVatPct(String(defaultVat));
+  }, [defaultVat, vatTouched]);
 
   const addLine = (assetId: string) => {
     const asset = assets.find((a) => a.id === assetId);
@@ -276,10 +331,11 @@ function InvoiceBuilder({
       const validUntil = new Date(
         Date.now() + (Number(validDays) || 30) * 24 * 60 * 60 * 1000
       ).toISOString();
+      const invoiceNumber = nextInvoiceNumber();
       await createInvoice(db, {
         organizationId: profile.organization_id,
         userId: user.id,
-        invoiceNumber: nextInvoiceNumber(),
+        invoiceNumber,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         customerTaxId: customerTaxId.trim() || undefined,
@@ -293,6 +349,7 @@ function InvoiceBuilder({
         appliedRateZig: rateNum,
         validUntil
       });
+      toast(`Invoice ${invoiceNumber} issued`);
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save.');
@@ -338,7 +395,10 @@ function InvoiceBuilder({
             step="0.1"
             min="0"
             value={vatPct}
-            onChange={(e) => setVatPct(e.target.value)}
+            onChange={(e) => {
+              setVatTouched(true);
+              setVatPct(e.target.value);
+            }}
           />
         </Field>
         <Field label="Valid (days)">
@@ -446,6 +506,7 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: string; onClose
   const { lines } = useInvoiceLines(invoiceId);
   const { receipts } = useInvoiceReceipts(invoiceId);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [printReceiptId, setPrintReceiptId] = useState<string | null>(null);
 
   const invoice: ProFormaInvoice | undefined = invoices.find((i) => i.id === invoiceId);
   if (!invoice) return null;
@@ -559,11 +620,30 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: string; onClose
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 4 }}>Receipts</div>
             {receipts.map((r) => (
-              <div key={r.id} style={{ fontSize: '0.82rem' }}>
-                {r.receipt_number} · {formatMoney(r.amount_paid, r.currency ?? 'USD')} ·{' '}
-                {labelFor(r.payment_method ?? '')}
-                {r.reference_number ? ` · Ref ${r.reference_number}` : ''} ·{' '}
-                {formatDate(r.created_at)}
+              <div
+                key={r.id}
+                style={{
+                  fontSize: '0.82rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '4px 0'
+                }}
+              >
+                <span>
+                  {r.receipt_number} · {formatMoney(r.amount_paid, r.currency ?? 'USD')} ·{' '}
+                  {labelFor(r.payment_method ?? '')}
+                  {r.reference_number ? ` · Ref ${r.reference_number}` : ''} ·{' '}
+                  {formatDate(r.created_at)}
+                </span>
+                <button
+                  className="btn btn-ghost no-print"
+                  style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                  onClick={() => setPrintReceiptId(r.id)}
+                >
+                  Print
+                </button>
               </div>
             ))}
           </div>
@@ -590,14 +670,37 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: string; onClose
       <Modal open={paymentOpen} title="Record payment" onClose={() => setPaymentOpen(false)}>
         <PaymentForm
           invoiceId={invoice.id}
+          invoiceNumber={invoice.invoice_number ?? ''}
           onDone={() => setPaymentOpen(false)}
         />
       </Modal>
+
+      {printReceiptId
+        ? (() => {
+            const receipt = receipts.find((r) => r.id === printReceiptId);
+            if (!receipt) return null;
+            return (
+              <ReceiptPrintModal
+                receipt={receipt}
+                invoice={invoice}
+                onClose={() => setPrintReceiptId(null)}
+              />
+            );
+          })()
+        : null}
     </Modal>
   );
 }
 
-function PaymentForm({ invoiceId, onDone }: { invoiceId: string; onDone: () => void }) {
+function PaymentForm({
+  invoiceId,
+  invoiceNumber,
+  onDone
+}: {
+  invoiceId: string;
+  invoiceNumber: string;
+  onDone: () => void;
+}) {
   const db = usePowerSync();
   const { profile, user } = useAuth();
   const [amount, setAmount] = useState('');
@@ -620,16 +723,19 @@ function PaymentForm({ invoiceId, onDone }: { invoiceId: string; onDone: () => v
     }
     setSaving(true);
     try {
-      await recordReceipt(db, {
+      const receiptNumber = nextReceiptNumber();
+      await recordReceiptWithLog(db, {
         organizationId: profile.organization_id,
         userId: user.id,
         invoiceId,
-        receiptNumber: nextReceiptNumber(),
+        invoiceNumber,
+        receiptNumber,
         amount: value,
         currency,
         paymentMethod: method,
         referenceNumber: reference.trim() || undefined
       });
+      toast(`Receipt ${receiptNumber} issued`);
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save.');

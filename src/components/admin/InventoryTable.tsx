@@ -1,7 +1,10 @@
 import { usePowerSync } from '@powersync/react';
+import { useMemo, useState } from 'react';
 import type { InventoryAsset } from '@/lib/powersync/AppSchema';
 import { updateAssetStatus } from '@/lib/powersync/mutations';
+import { exportCsv } from '@/utils/csv';
 import { formatUSD } from '@/utils/format';
+import { Input } from '@/components/ui/Field';
 import { EmptyState } from '@/components/ui/States';
 import { ASSET_STATUSES } from '@/utils/constants';
 
@@ -13,12 +16,57 @@ export function InventoryTable({
   onEdit: (asset: InventoryAsset) => void;
 }) {
   const db = usePowerSync();
+  const [query, setQuery] = useState('');
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return assets;
+    return assets.filter(
+      (a) =>
+        (a.name ?? '').toLowerCase().includes(q) ||
+        (a.sku ?? '').toLowerCase().includes(q)
+    );
+  }, [assets, query]);
 
   if (assets.length === 0) {
     return <EmptyState title="No equipment yet" message="Add your first asset to start tracking." />;
   }
 
   return (
+    <>
+    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+      <Input
+        type="search"
+        placeholder="Search name or SKU…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        aria-label="Search equipment"
+        style={{ flex: 1 }}
+      />
+      <button
+        className="btn btn-secondary"
+        style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+        onClick={() =>
+          exportCsv(
+            'inventory.csv',
+            ['Name', 'SKU', 'Status', 'Stock', 'USD', 'ZiG'],
+            visible.map((a) => [
+              a.name,
+              a.sku,
+              a.status,
+              a.stock_count,
+              a.price_usd,
+              a.price_zig
+            ])
+          )
+        }
+      >
+        Export CSV
+      </button>
+    </div>
+    {visible.length === 0 ? (
+      <EmptyState title="No matches" message={`Nothing matches “${query}”.`} />
+    ) : (
     <div className="table-wrap">
       <table className="table">
         <thead>
@@ -32,7 +80,7 @@ export function InventoryTable({
           </tr>
         </thead>
         <tbody>
-          {assets.map((asset) => (
+          {visible.map((asset) => (
             <tr key={asset.id}>
               <td style={{ fontWeight: 600 }}>{asset.name}</td>
               <td>
@@ -73,5 +121,7 @@ export function InventoryTable({
         </tbody>
       </table>
     </div>
+    )}
+    </>
   );
 }

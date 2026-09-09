@@ -12,6 +12,7 @@ export const organizations = new Table({
   phone: column.text,
   email: column.text,
   currency: column.text,
+  default_vat_rate: column.real,
   created_at: column.text,
   updated_at: column.text
 });

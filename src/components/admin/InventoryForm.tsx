@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { Category, Site } from '@/lib/powersync/AppSchema';
 import { createInventoryAsset } from '@/lib/powersync/mutations';
 import { uploadMachineImage } from '@/lib/storage/uploadImage';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
@@ -75,6 +76,7 @@ export function InventoryForm({ categories, sites, onDone }: InventoryFormProps)
         thumbnailUrl,
         imageUrls
       });
+      toast(`“${form.name.trim()}” added to stock`);
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save.');

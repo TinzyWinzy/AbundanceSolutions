@@ -7,6 +7,7 @@ import {
   updateInventoryAsset
 } from '@/lib/powersync/mutations';
 import { uploadMachineImage } from '@/lib/storage/uploadImage';
+import { toast } from '@/lib/toast';
 import { Button } from '@/components/ui/Button';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { ImagePicker } from './ImagePicker';
@@ -86,6 +87,7 @@ export function InventoryEditForm({ asset, categories, sites, onDone }: Inventor
         thumbnailUrl,
         imageUrls
       });
+      toast('Changes saved');
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save.');
@@ -110,6 +112,7 @@ export function InventoryEditForm({ asset, categories, sites, onDone }: Inventor
         return;
       }
       await deleteInventoryAsset(db, asset.id);
+      toast(`“${asset.name}” deleted`);
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete.');

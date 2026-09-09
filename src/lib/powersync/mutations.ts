@@ -328,3 +328,151 @@ export async function saveExchangeRate(
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+export interface ReceiptWithLogInput extends ReceiptInput {
+  invoiceNumber: string;
+}
+
+/**
+ * Records a payment receipt AND mirrors it into financial_logs in one
+ * write transaction, so the two money books stay consistent and upload
+ * atomically. reference_number links the log row back to the receipt.
+ */
+export async function recordReceiptWithLog(db: PowerSyncDatabase, input: ReceiptWithLogInput) {
+  const receiptId = uuid();
+  const ts = now();
+
+  await db.writeTransaction(async (tx) => {
+    await tx.execute(
+      `INSERT INTO payment_receipts
+        (id, organization_id, receipt_number, invoice_id, amount_paid, currency,
+         payment_method, reference_number, collected_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        receiptId,
+        input.organizationId,
+        input.receiptNumber,
+        input.invoiceId,
+        input.amount,
+        input.currency,
+        input.paymentMethod,
+        input.referenceNumber ?? null,
+        input.userId,
+        ts
+      ]
+    );
+
+    await tx.execute(
+      `INSERT INTO financial_logs
+        (id, organization_id, site_id, user_id, asset_id, transaction_type, currency, amount,
+         description, reference_number, payment_method, logged_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        uuid(),
+        input.organizationId,
+        null,
+        input.userId,
+        null,
+        'sale',
+        input.currency,
+        input.amount,
+        `Receipt ${input.receiptNumber} - invoice ${input.invoiceNumber}`,
+        input.receiptNumber,
+        input.paymentMethod,
+        ts,
+        ts,
+        ts
+      ]
+    );
+  });
+
+  return receiptId;
+}
+
+export interface DeliveryLine {
+  assetId: string | null;
+  quantity: number;
+}
+
+/**
+ * Marks an order delivered and decrements stock once. Callers must only
+ * invoke this on the transition INTO delivered (guard lives in UI).
+ * Stock is clamped at zero, never negative.
+ */
+export async function deliverOrder(
+  db: PowerSyncDatabase,
+  orderId: string,
+  lines: DeliveryLine[]
+) {
+  const ts = now();
+  await db.writeTransaction(async (tx) => {
+    await tx.execute('UPDATE orders SET status = ?, updated_at = ? WHERE id = ?', [
+      'delivered',
+      ts,
+      orderId
+    ]);
+    for (const line of lines) {
+      if (!line.assetId) continue;
+      await tx.execute(
+        'UPDATE inventory_assets SET stock_count = max(0, stock_count - ?), updated_at = ? WHERE id = ?',
+        [line.quantity, ts, line.assetId]
+      );
+    }
+  });
+}
+
+export async function createSite(
+  db: PowerSyncDatabase,
+  organizationId: string,
+  name: string,
+  address?: string
+) {
+  const id = uuid();
+  await db.execute(
+    'INSERT INTO sites (id, organization_id, name, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    [id, organizationId, name, address ?? null, now(), now()]
+  );
+  return id;
+}
+
+export async function assignSite(db: PowerSyncDatabase, siteId: string, userId: string) {
+  const id = uuid();
+  await db.execute(
+    'INSERT INTO site_assignments (id, site_id, user_id, created_at) VALUES (?, ?, ?, ?)',
+    [id, siteId, userId, now()]
+  );
+  return id;
+}
+
+export async function unassignSite(db: PowerSyncDatabase, siteId: string, userId: string) {
+  await db.execute('DELETE FROM site_assignments WHERE site_id = ? AND user_id = ?', [
+    siteId,
+    userId
+  ]);
+}
+
+export async function updateProfileRole(db: PowerSyncDatabase, userId: string, role: string) {
+  await db.execute('UPDATE profiles SET role = ?, updated_at = ? WHERE id = ?', [
+    role,
+    now(),
+    userId
+  ]);
+}
+
+export interface OrgUpdate {
+  name: string;
+  phone?: string;
+  email?: string;
+  defaultVatRate: number;
+}
+
+export async function updateOrganization(
+  db: PowerSyncDatabase,
+  id: string,
+  input: OrgUpdate
+) {
+  await db.execute(
+    'UPDATE organizations SET name = ?, phone = ?, email = ?, default_vat_rate = ?, updated_at = ? WHERE id = ?',
+    [input.name, input.phone ?? null, input.email ?? null, input.defaultVatRate, now(), id]
+  );
+}

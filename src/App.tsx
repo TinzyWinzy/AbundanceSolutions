@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { InstallPrompt } from '@/components/layout/InstallPrompt';
 import { SiteFooter } from '@/components/layout/SiteFooter';
+import { Toaster } from '@/lib/toast';
 import { PowerSyncProvider } from '@/lib/powersync/PowerSyncProvider';
 import { AdminPage } from '@/pages/AdminPage';
 import { CheckoutPage } from '@/pages/CheckoutPage';
@@ -34,6 +35,7 @@ export default function App() {
         </main>
         <SiteFooter />
         <InstallPrompt />
+        <Toaster />
       </BrowserRouter>
     </PowerSyncProvider>
   );

@@ -1,4 +1,5 @@
 import type { FinancialLog } from '@/lib/powersync/AppSchema';
+import { exportCsv } from '@/utils/csv';
 import { formatDate, formatMoney } from '@/utils/format';
 import { labelFor } from '@/utils/constants';
 import { EmptyState } from '@/components/ui/States';
@@ -9,6 +10,30 @@ export function FinancialLogTable({ logs }: { logs: FinancialLog[] }) {
   }
 
   return (
+    <>
+    <div style={{ marginBottom: 10, textAlign: 'right' }}>
+      <button
+        className="btn btn-secondary"
+        style={{ fontSize: '0.82rem' }}
+        onClick={() =>
+          exportCsv(
+            'transactions.csv',
+            ['Date', 'Type', 'Currency', 'Amount', 'Method', 'Reference', 'Description'],
+            logs.map((l) => [
+              l.logged_at,
+              l.transaction_type,
+              l.currency,
+              l.amount,
+              l.payment_method,
+              l.reference_number,
+              l.description
+            ])
+          )
+        }
+      >
+        Export CSV
+      </button>
+    </div>
     <div className="table-wrap">
       <table className="table">
         <thead>
@@ -35,5 +60,6 @@ export function FinancialLogTable({ logs }: { logs: FinancialLog[] }) {
         </tbody>
       </table>
     </div>
+    </>
   );
 }
