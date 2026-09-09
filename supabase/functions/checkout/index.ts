@@ -71,6 +71,58 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers });
   }
+
+  // Public rate lookup: GET ?organization_id=<uuid> returns the latest
+  // USD/ZiG rate for quote display. Null rate when unset - never invented.
+  if (req.method === 'GET') {
+    const url = new URL(req.url);
+    const organizationId = url.searchParams.get('organization_id') ?? '';
+    if (!UUID_RE.test(organizationId)) {
+      return new Response(JSON.stringify({ error: 'Valid organization_id required' }), {
+        status: 400,
+        headers,
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    if (!supabaseUrl || !serviceKey) {
+      return new Response(JSON.stringify({ error: 'Rates unavailable' }), {
+        status: 500,
+        headers,
+      });
+    }
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('id')
+      .eq('id', organizationId)
+      .maybeSingle();
+    if (!org) {
+      return new Response(JSON.stringify({ error: 'Unknown organization' }), {
+        status: 404,
+        headers,
+      });
+    }
+
+    const { data: rateRow } = await supabase
+      .from('exchange_rates')
+      .select('official_rate, effective_at')
+      .eq('organization_id', organizationId)
+      .order('effective_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return new Response(
+      JSON.stringify({
+        rate: rateRow ? Number(rateRow.official_rate) : null,
+        effectiveAt: rateRow ? rateRow.effective_at : null,
+      }),
+      { status: 200, headers },
+    );
+  }
+
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,

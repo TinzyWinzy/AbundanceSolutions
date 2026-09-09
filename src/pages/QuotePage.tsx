@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useCart } from '@/stores/cart';
+import { getLiveRate } from '@/lib/rates/getRate';
 import {
   computeQuoteTotals,
   nextQuoteNumber,
@@ -15,8 +16,38 @@ export function QuotePage() {
   const [quoteNumber] = useState(() => nextQuoteNumber());
   const [customerName, setCustomerName] = useState('');
   const [rate, setRate] = useState('');
+  const [rateNote, setRateNote] = useState<string | null>(null);
+  const [rateLoading, setRateLoading] = useState(true);
   const [vatPct, setVatPct] = useState('15');
   const [validDays, setValidDays] = useState('14');
+
+  const loadRate = async () => {
+    setRateLoading(true);
+    try {
+      const live = await getLiveRate();
+      if (live.rate != null) {
+        setRate(String(live.rate));
+        const when = live.effectiveAt
+          ? new Date(live.effectiveAt).toLocaleDateString('en-ZW', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            })
+          : null;
+        setRateNote(
+          `Live rate${when ? ` as of ${when}` : ''}${live.stale ? ' (cached — offline)' : ''}`
+        );
+      } else {
+        setRateNote('No live rate published — enter the day\u2019s rate manually.');
+      }
+    } finally {
+      setRateLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRate();
+  }, []);
 
   const lines = useMemo(
     () =>
@@ -77,9 +108,38 @@ export function QuotePage() {
             step="0.0001"
             min="0.0001"
             value={rate}
-            onChange={(e) => setRate(e.target.value)}
+            onChange={(e) => {
+              setRate(e.target.value);
+              setRateNote(null);
+            }}
             placeholder="e.g. 26.5"
           />
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+            {rateLoading ? (
+              'Fetching live rate…'
+            ) : rateNote ? (
+              <>
+                {rateNote}{' '}
+                <button
+                  type="button"
+                  onClick={loadRate}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    color: 'var(--primary)',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  Refresh
+                </button>
+              </>
+            ) : (
+              'Manual rate.'
+            )}
+          </div>
         </Field>
         <Field label="VAT %">
           <Input
