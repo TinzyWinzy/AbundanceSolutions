@@ -185,6 +185,19 @@ export async function createInvoice(db: PowerSyncDatabase, input: InvoiceInput) 
   return id;
 }
 
+const ORDER_STATUSES = ['pending', 'confirmed', 'delivered', 'cancelled'] as const;
+
+export async function updateOrderStatus(db: PowerSyncDatabase, id: string, status: string) {
+  if (!(ORDER_STATUSES as readonly string[]).includes(status)) {
+    throw new Error('Invalid order status');
+  }
+  await db.execute('UPDATE orders SET status = ?, updated_at = ? WHERE id = ?', [
+    status,
+    now(),
+    id
+  ]);
+}
+
 export async function cancelInvoice(db: PowerSyncDatabase, id: string) {
   await db.execute(
     "UPDATE pro_forma_invoices SET status = 'cancelled', updated_at = ? WHERE id = ? AND status IN ('draft', 'issued')",

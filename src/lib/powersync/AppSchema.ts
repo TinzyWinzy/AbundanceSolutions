@@ -125,11 +125,18 @@ export const orders = new Table(
     status: column.text,
     total_usd: column.real,
     total_zig: column.real,
+    reference: column.text,
     notes: column.text,
     created_at: column.text,
     updated_at: column.text
   },
-  { indexes: { org: ['organization_id'] } }
+  {
+    indexes: {
+      org: ['organization_id'],
+      ref: ['reference'],
+      status: ['status']
+    }
+  }
 );
 
 export const order_items = new Table(

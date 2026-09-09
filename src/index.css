@@ -229,6 +229,16 @@ button {
   color: var(--danger);
 }
 
+.badge-confirmed {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.badge-delivered {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
 /* ---- Layout ---- */
 .app-header {
   background: var(--surface);

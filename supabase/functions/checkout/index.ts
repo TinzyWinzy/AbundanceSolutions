@@ -217,6 +217,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       { status: 400, headers },
     );
   }
+  // Price-on-enquiry items must never become $0 orders - route to WhatsApp.
+  const unpriced = assets.find((a) => a.price_usd == null);
+  if (unpriced) {
+    return new Response(
+      JSON.stringify({
+        error: `${unpriced.name ?? 'Item'} is priced on enquiry - please WhatsApp us to order it`,
+      }),
+      { status: 400, headers },
+    );
+  }
   const orgIds = new Set(assets.map((a) => a.organization_id as string));
   if (orgIds.size !== 1) {
     return new Response(JSON.stringify({ error: 'Items span multiple stores' }), {
