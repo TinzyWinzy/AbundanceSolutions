@@ -11,6 +11,8 @@ export interface OrderPayload {
   lines: CartLine[];
   totalUsd: number;
   totalZig: number;
+  reference?: string;
+  customerName?: string;
 }
 
 function formatMoney(amount: number | null, symbol: string): string {
@@ -37,9 +39,11 @@ export function buildWhatsAppCheckoutUrl(payload: OrderPayload): string {
     .filter(Boolean)
     .join(' | ');
 
-  const text = `Order Summary:\n${lines}\nTotal: ${totals}`;
+  const header = payload.reference
+    ? `Order ${payload.reference}${payload.customerName ? ` (${payload.customerName})` : ''}:\n${lines}\nTotal: ${totals}`
+    : `Order Summary:\n${lines}\nTotal: ${totals}`;
 
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(header)}`;
 }
 
 export function openWhatsAppCheckout(payload: OrderPayload): void {

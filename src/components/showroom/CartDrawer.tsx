@@ -1,29 +1,13 @@
-import { openWhatsAppCheckout } from '@/lib/whatsapp/bridge';
+import { Link } from 'react-router-dom';
 import { useCart } from '@/stores/cart';
 import { formatUSD } from '@/utils/format';
-import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 
 export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { items, remove, setQuantity, clear } = useCart();
+  const { items, remove, setQuantity } = useCart();
 
   const totalUsd = items.reduce((sum, i) => sum + (i.unitPriceUsd ?? 0) * i.quantity, 0);
   const totalZig = items.reduce((sum, i) => sum + (i.unitPriceZig ?? 0) * i.quantity, 0);
-
-  const handleCheckout = () => {
-    openWhatsAppCheckout({
-      lines: items.map((i) => ({
-        name: i.name,
-        quantity: i.quantity,
-        unitPriceUsd: i.unitPriceUsd,
-        unitPriceZig: i.unitPriceZig
-      })),
-      totalUsd,
-      totalZig
-    });
-    clear();
-    onClose();
-  };
 
   return (
     <Modal open={open} title="Your enquiry" onClose={onClose}>
@@ -98,9 +82,12 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             </span>
           </div>
 
-          <Button block onClick={handleCheckout}>
-            Checkout via WhatsApp
-          </Button>
+          <Link to="/checkout" className="btn btn-primary btn-block" onClick={onClose}>
+            Continue to checkout →
+          </Link>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 8 }}>
+            Your order is saved with a reference number before anything opens WhatsApp.
+          </p>
         </>
       )}
     </Modal>

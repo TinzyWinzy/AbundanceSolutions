@@ -1,10 +1,12 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useCart } from '@/stores/cart';
 import { BandwidthToggle } from './BandwidthToggle';
 import { OfflineIndicator } from './OfflineIndicator';
 
 export function AppHeader() {
   const { user, isAdmin, loading, signOut } = useAuth();
+  const cartCount = useCart((s) => s.items.reduce((n, i) => n + i.quantity, 0));
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -25,6 +27,27 @@ export function AppHeader() {
 
         <nav style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <OfflineIndicator />
+          <NavLink
+            to="/"
+            end
+            className="btn btn-ghost"
+            style={({ isActive }) => ({
+              fontSize: '0.85rem',
+              fontWeight: isActive ? 800 : 400
+            })}
+          >
+            Home
+          </NavLink>
+          <NavLink
+            to="/store"
+            className="btn btn-ghost"
+            style={({ isActive }) => ({
+              fontSize: '0.85rem',
+              fontWeight: isActive ? 800 : 400
+            })}
+          >
+            Store{cartCount > 0 ? ` (${cartCount})` : ''}
+          </NavLink>
           <BandwidthToggle />
 
           {isAdmin ? (

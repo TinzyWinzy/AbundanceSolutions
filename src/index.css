@@ -361,6 +361,17 @@ button {
   border-bottom: none;
 }
 
+/* ---- Product detail layout ---- */
+.detail-layout {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 800px) {
+  .detail-layout {
+    grid-template-columns: 5fr 4fr;
+  }
+}
+
 /* ---- Print (invoices & receipts, works offline) ---- */
 @media print {
   body * {

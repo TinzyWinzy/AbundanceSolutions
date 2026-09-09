@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { InventoryAsset } from '@/lib/powersync/AppSchema';
 import { useCart } from '@/stores/cart';
 import { useUI } from '@/stores/ui';
@@ -21,8 +22,12 @@ export function ProductCard({ asset }: { asset: InventoryAsset }) {
   const images = parseImages(asset);
   const image = asset.thumbnail_url ?? images[0] ?? null;
   const showImage = !bandwidthSaver && image;
+  const lowStock =
+    (asset.min_stock ?? 0) > 0 && (asset.stock_count ?? 0) <= (asset.min_stock ?? 0);
 
-  const handleAdd = () => {
+  const handleAdd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     add({
       assetId: asset.id,
       name: asset.name ?? 'Unnamed item',
@@ -33,7 +38,32 @@ export function ProductCard({ asset }: { asset: InventoryAsset }) {
   };
 
   return (
-    <div className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <Link
+      to={`/store/${asset.id}`}
+      className="card"
+      style={{
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        color: 'inherit',
+        position: 'relative'
+      }}
+    >
+      {lowStock ? (
+        <span
+          className="badge"
+          style={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            zIndex: 1,
+            background: 'var(--danger)',
+            color: '#fff'
+          }}
+        >
+          Only {asset.stock_count} left
+        </span>
+      ) : null}
       <div
         style={{
           aspectRatio: '4/3',
@@ -75,6 +105,6 @@ export function ProductCard({ asset }: { asset: InventoryAsset }) {
           Add to enquiry
         </Button>
       </div>
-    </div>
+    </Link>
   );
 }
