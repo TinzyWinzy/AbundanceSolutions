@@ -35,3 +35,6 @@ Thumbs.db
 # Supabase local
 supabase/.branches
 supabase/.temp
+
+# Raw asset sources (large, not for git)
+assets-source/

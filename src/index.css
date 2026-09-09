@@ -5,9 +5,9 @@
   --border: #e2e8f0;
   --text: #0f172a;
   --text-muted: #64748b;
-  --primary: #0f766e;
-  --primary-dark: #115e59;
-  --primary-soft: #ccfbf1;
+  --primary: #d90429;
+  --primary-dark: #a90320;
+  --primary-soft: #fde7ea;
   --accent: #f59e0b;
   --danger: #dc2626;
   --danger-soft: #fee2e2;
@@ -151,7 +151,7 @@ button {
 .textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+  box-shadow: 0 0 0 3px rgba(217, 4, 41, 0.15);
 }
 
 /* ---- Cards ---- */

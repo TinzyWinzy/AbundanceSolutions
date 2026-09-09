@@ -44,7 +44,7 @@ export function ShowroomPage() {
           right: 20,
           borderRadius: 999,
           padding: '14px 20px',
-          boxShadow: '0 4px 16px rgba(15, 118, 110, 0.4)',
+          boxShadow: '0 4px 16px rgba(217, 4, 41, 0.4)',
           zIndex: 50
         }}
         onClick={() => setCartOpen(true)}
