@@ -74,8 +74,8 @@ export function LandingPage() {
         }}
       >
         <img
-          src="/images/machinery/dezzi-excavator.jpg"
-          alt="Dezzi HD820 excavator ready for work"
+          src="/images/hero.jpg"
+          alt="Wheel loader ready for work at the Abundance Solutions yard"
           style={{
             position: 'absolute',
             inset: 0,
