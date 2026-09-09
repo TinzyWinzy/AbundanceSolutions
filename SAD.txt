@@ -1,0 +1,106 @@
+Abundance2027uni
+Software Architecture Document: Abundance Solutions Offline-First PWA (Zimbabwe)
+
+1. Executive Architectural Overview
+
+This document outlines the high-level architecture for the Abundance Solutions Progressive Web Application (PWA), engineered to solve the "Connectivity Gap" in the Zimbabwean market.
+
+The system operates on an offline-first philosophy, where the local device is the primary source of truth. Unlike traditional cloud-dependent applications, this architecture ensures that field operations—ranging from heavy machinery inventory management to financial logging—are never interrupted by network latency or total signal loss. By integrating Supabase PostgreSQL as the cloud-native source of truth and PowerSync as the synchronization middleware, the system maintains a high-performance local SQLite database that streams bi-directional updates in the background.
+
+2. Regional Context and Infrastructure Constraints
+
+The architectural design is a direct response to the specific economic and technical constraints of Zimbabwe:
+
+* Intermittent Connectivity: Users frequently experience total signal loss in elevators, building basements, or remote mining and farming sites. The PWA must facilitate full functionality without a persistent "heartbeat" to the server.
+* High Mobile Data Tariffs: General internet access via Econet is prohibitively expensive. Users optimize costs by utilizing specific data tiers.
+* WhatsApp Bundle Arbitrage: In the local market, WhatsApp bundles (purchased in ZiG (Zimbabwe Gold) or USD) are significantly cheaper than general data. These bundles zero-rate traffic to WhatsApp but block standard WebSockets and most REST API traffic.
+* PowerSync Necessity: Standard real-time listeners (like Supabase Realtime) rely on stable WebSockets. PowerSync is mandated here to handle high-latency, intermittent environments by efficiently streaming only the necessary data deltas when a connection is established.
+
+3. Core Technology Stack
+
+Layer	Technology	Architectural Purpose
+Frontend Framework	React 19.2.0 + Vite 7.2.4	Modern UI framework utilizing the latest concurrent rendering features.
+PWA Management	vite-plugin-pwa	Automates Service Worker registration and Workbox-based asset caching.
+Client Storage	PowerSync Web SDK (WASM)	Embedded SQLite database running in-browser via WebAssembly for relational local storage.
+Sync Engine	PowerSync Service	Middleware streaming logical mutations from the Supabase Write-Ahead Log (WAL).
+Cloud Database	Supabase (PostgreSQL)	Authority for relational data, authentication, and secure row-level access.
+Conversion Bridge	WhatsApp Click-to-Chat API	Transmits finalized orders via zero-rated social bundles to bypass general internet costs.
+
+4. Data Layer & Synchronization Logic
+
+4.1. PowerSync Engine Implementation
+
+PowerSync provides the bi-directional bridge between the browser's IndexedDB and the cloud.
+
+1. Local WASM SQLite: The SDK instantiates a local SQLite database using WebAssembly (WASM). This allows the application to execute complex relational queries locally with sub-millisecond latency, entirely independent of the network.
+2. WAL Streaming: PowerSync monitors the Supabase PostgreSQL Write-Ahead Log (WAL). It captures server-side logical mutations and streams them to the client. The client SDK then applies these updates to the local SQLite replica, ensuring eventual consistency.
+
+4.2. Row-Level Partial Replication (Sync Rules)
+
+To optimize data consumption on expensive mobile networks, we implement SQL-based Sync Rules. These rules ensure that only the relevant data subset is synchronized to the client device.
+
+* Technical Description: Sync rules partition the global dataset. For instance, an admin in a specific region should only sync records relevant to their user_id or assigned project.
+* Example Rule: SELECT * FROM inventory WHERE owner_id = :userId This minimizes the local storage footprint and drastically reduces the data consumed during the initial sync.
+
+5. Offline-First Mutation & Conflict Resolution
+
+5.1. Optimistic UI & Local Outbox
+
+The application handles user actions using a non-blocking "Local-First" flow:
+
+1. Immediate Local Write: Mutations are committed to the local SQLite/WASM instance immediately, using a unique UUIDv4 and a syncStatus = 'pending' flag.
+2. Optimistic UI Update: The UI reacts to the local database change instantly, providing the user with zero-latency feedback.
+3. Background Queueing: The PowerSync SDK enqueues the mutation in a local outbox. When connectivity is restored, the SDK flushes the pending payload to the cloud for reconciliation.
+
+5.2. Server-Authoritative Conflict Resolution
+
+To prevent data corruption during multi-device updates (e.g., two field admins updating the same excavator's status), we utilize a Last-Write-Wins (LWW) strategy supported by a timestamp vector.
+
+* Resolution: Supabase PostgreSQL acts as the ultimate authority. If a conflict occurs, the record with the most recent timestamp in the vector is preserved.
+* Audit Logs: Server-side logs maintain a history of these resolutions, ensuring traceability for financial logs—specifically for transactions handled in ZiG and USD.
+
+6. Emerging Market Optimization: The WhatsApp Bundle Bridge
+
+For e-commerce prospects browsing heavy machinery (generators, concrete mixers), the architecture uses an "Offline-to-Social" conversion path to bypass expensive data gateways.
+
+Cart Serialization Flow
+
+1. Offline Browsing: Users browse cached catalogs and build a shopping cart stored in IndexedDB without consuming general internet data.
+2. Order Serialization: Upon checkout, the system serializes the OrderSummaryPayload into a pre-encoded wa.me URL.
+3. Transmission: The system triggers the bridge link: https://wa.me/263719450765?text=OrderSummaryPayload.
+4. Cost Advantage: Because the data is transmitted via WhatsApp, the user utilizes their zero-rated social data bundle, successfully completing a transaction even when general internet credit is exhausted.
+
+7. Security & Access Control Framework
+
+7.1. Supabase Row Level Security (RLS)
+
+Security is enforced at the database layer. RLS is disabled by default in Supabase and must be explicitly enabled for every table to prevent unauthorized access.
+
+* Command: ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
+* Policy Logic: Policies leverage the auth.uid() claim within the user's JWT. We implement Pattern 3 (Sensitive Data Restriction):
+
+CREATE POLICY "Users cannot access payment info"
+ON payment_logs FOR ALL
+USING (
+  auth.uid() = user_id AND
+  (auth.jwt() ->> 'client_id') IS NULL  -- Restricts to direct user sessions only
+);
+
+
+7.2. Scoped Token Management
+
+* Token Hygiene: We use short-lived JWT access tokens (30-day rotation) to minimize the risk of compromised local storage.
+* Key Isolation: Publishable anon keys are used in the client-side PWA, while service_role keys are strictly restricted to server-side Edge Functions. Leaking a service_role key would bypass all RLS policies and is treated as a critical security breach.
+
+8. Performance & Data-Saving Protocols
+
+* Incremental Delta Updates: Using vite-plugin-pwa and Workbox, the system implements manifest-based caching to ensure users only download the specific code blocks that have changed.
+* Next-Gen Media: Heavy machinery photography is served in WebP format with responsive srcset attributes to deliver the smallest possible payload for the device resolution.
+* Bandwidth Saver Toggle: A global application state allows users to disable high-definition image prefetching entirely, favoring text-and-thumbnail summaries in remote or low-signal zones.
+
+9. Operational Lifecycle (Service Worker Management)
+
+The PWA lifecycle is strictly managed via vite-plugin-pwa to maintain application durability:
+
+* onNeedRefresh: When a new version of the logic or schema is detected, the app prompts the user to refresh. This ensures the local SQLite schema remains aligned with the cloud.
+* onOfflineReady: On the initial visit, the Service Worker caches the "App Shell" and core assets. The user is notified when the app is "ready to work offline," confirming that the local source of truth is established and persistent.

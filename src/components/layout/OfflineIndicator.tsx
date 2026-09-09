@@ -1,9 +1,11 @@
 import { useStatus } from '@powersync/react';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase/client';
 
 function useSyncState() {
   const status = useStatus();
   const [online, setOnline] = useState(navigator.onLine);
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -16,18 +18,48 @@ function useSyncState() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setHasSession(!!data.session);
+    });
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) setHasSession(!!session);
+    });
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
   const connected = status?.connected ?? false;
   const pending = status?.hasSynced === false;
-  const ok = online && connected && !pending;
+  const failed = !!status?.downloadError;
 
-  const label = !online
-    ? 'Offline — changes saved locally'
-    : !connected
-      ? 'Connecting…'
-      : 'Syncing…';
-
-  const color = !online ? '#f59e0b' : '#16a34a';
-  return { ok, label, color };
+  // Signed-out visitors never sync: nothing to report while online.
+  if (!online) {
+    return {
+      ok: false,
+      label: hasSession ? 'Offline — changes saved locally' : 'Offline — browsing cached catalog',
+      color: '#f59e0b'
+    };
+  }
+  if (!hasSession) {
+    return { ok: true, label: '', color: '' };
+  }
+  if (failed) {
+    return { ok: false, label: 'Sync unavailable — working locally', color: '#dc2626' };
+  }
+  if (!connected || pending) {
+    return {
+      ok: false,
+      label: !connected ? 'Connecting…' : 'Syncing…',
+      color: '#16a34a'
+    };
+  }
+  return { ok: true, label: '', color: '' };
 }
 
 /** Compact pill for the desktop header row. */
