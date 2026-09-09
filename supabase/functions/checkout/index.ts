@@ -9,15 +9,26 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const ALLOWED_ORIGINS = new Set([
+const DEFAULT_ORIGINS = [
   'https://abundance.co.zw',
   'https://www.abundance.co.zw',
+  'https://abundancesolutions.vercel.app',
   'http://localhost:5173',
   'http://localhost:5199',
-]);
+];
+
+function allowedOrigins(): Set<string> {
+  // Extend without redeploying: set ALLOWED_ORIGINS to a comma-separated
+  // list in the function environment (e.g. Vercel preview URLs).
+  const extra = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return new Set([...DEFAULT_ORIGINS, ...extra]);
+}
 
 function corsHeaders(origin: string | null): Record<string, string> {
-  const allow = origin && ALLOWED_ORIGINS.has(origin) ? origin : '';
+  const allow = origin && allowedOrigins().has(origin) ? origin : '';
   return {
     'Access-Control-Allow-Origin': allow,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
