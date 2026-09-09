@@ -207,7 +207,8 @@ export function ProductDetailPage() {
             </Button>
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 10 }}>
-            Checkout saves your order with a reference number before opening WhatsApp.
+            Checkout saves your order with a reference number before opening WhatsApp.{' '}
+            <Link to="/enquire">Not sure? Find your machine →</Link>
           </p>
         </div>
       </div>

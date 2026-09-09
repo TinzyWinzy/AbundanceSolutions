@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useCatalog } from '@/hooks/useCatalog';
 import { CategoryFilter } from '@/components/showroom/CategoryFilter';
 import { ProductGrid } from '@/components/showroom/ProductGrid';
@@ -55,7 +55,8 @@ export function StorePage() {
       <section style={{ padding: '8px 0' }}>
         <h1 style={{ margin: 0, fontSize: '1.5rem' }}>Equipment store</h1>
         <p style={{ color: 'var(--text-muted)', marginTop: 4 }}>
-          Real stock, real prices. Enquire over WhatsApp.
+          Real stock, real prices. Enquire over WhatsApp.{' '}
+          <Link to="/enquire">Not sure what you need? Find your machine →</Link>
         </p>
       </section>
 

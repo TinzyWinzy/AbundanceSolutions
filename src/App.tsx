@@ -5,7 +5,9 @@ import { SiteFooter } from '@/components/layout/SiteFooter';
 import { PowerSyncProvider } from '@/lib/powersync/PowerSyncProvider';
 import { AdminPage } from '@/pages/AdminPage';
 import { CheckoutPage } from '@/pages/CheckoutPage';
+import { EnquirePage } from '@/pages/EnquirePage';
 import { LandingPage } from '@/pages/LandingPage';
+import { QuotePage } from '@/pages/QuotePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ProductDetailPage } from '@/pages/ProductDetailPage';
@@ -22,6 +24,8 @@ export default function App() {
             <Route path="/store" element={<StorePage />} />
             <Route path="/store/:id" element={<ProductDetailPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/enquire" element={<EnquirePage />} />
+            <Route path="/quote" element={<QuotePage />} />
             <Route path="/showroom" element={<Navigate to="/store" replace />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/admin" element={<AdminPage />} />

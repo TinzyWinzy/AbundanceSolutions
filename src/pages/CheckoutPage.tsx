@@ -208,6 +208,9 @@ export function CheckoutPage() {
           <Button block onClick={() => setStep('details')}>
             Continue →
           </Button>
+          <p style={{ textAlign: 'center', marginTop: 10, fontSize: '0.88rem' }}>
+            <Link to="/quote">Prefer a formal quotation first?</Link>
+          </p>
         </>
       ) : (
         <>

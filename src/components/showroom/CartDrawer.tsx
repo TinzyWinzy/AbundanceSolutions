@@ -85,6 +85,11 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           <Link to="/checkout" className="btn btn-primary btn-block" onClick={onClose}>
             Continue to checkout →
           </Link>
+          <p style={{ textAlign: 'center', marginTop: 8, marginBottom: 0 }}>
+            <Link to="/quote" onClick={onClose} style={{ fontSize: '0.85rem' }}>
+              Or build a quotation first
+            </Link>
+          </p>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 8 }}>
             Your order is saved with a reference number before anything opens WhatsApp.
           </p>
