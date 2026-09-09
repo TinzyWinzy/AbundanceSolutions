@@ -1,0 +1,157 @@
+Master Technical Specification: Abundance Solutions Offline-First PWA
+
+1. Market Context & Core Objectives
+
+Zimbabwe Infrastructure Analysis
+
+The architecture of the Abundance Solutions PWA is specifically engineered to mitigate the systemic constraints of Zimbabwe’s mobile data landscape. Relying on "always-on" assumptions is a failure state in this market. The design is dictated by:
+
+* Hyper-Fragmented Data Tiers: Reliance on Econet USD & ZiG WhatsApp bundles means users may have active social messaging data while general internet access is blocked or metered at prohibitive rates.
+* Intermittent Connectivity: Frequent signal drops in rural mining zones and congested urban centers necessitate a "Local-First" approach where the device is the primary source of truth.
+* Socket Failures: Standard WebSocket connections and high-overhead API polling often fail under restrictive WhatsApp-only bundles, necessitating an "Offline-to-Social" bridge.
+* Currency Regime Fluctuation: The app must support logging for both USD and ZiG transactions without requiring a real-time exchange rate server check.
+
+Strategic Objectives
+
+User Persona	Functional Goals
+Commercial Prospect	Instant browsing of machinery catalogs (JCBs, generators) via Cache-First state; order conversion using zero-rated WhatsApp data; operation on "stale" but available data.
+Business Owner / Admin	Strong consistency for financial logs (Cash/EcoCash); real-time inventory adjustments; background reconciliation of the Offline Outbox once signal is restored.
+
+2. High-Level Technology Stack
+
+Architectural Layering
+
+Layer	Selected Technology	Architectural Purpose
+Frontend/Build	Vite + vite-plugin-pwa	Rapid HMR, static asset optimization, and automated Service Worker lifecycle management.
+Storage (Client)	Dexie.js + OPFS	IndexedDB wrapper for application state; Origin Private File System (OPFS) for high-performance I/O of SQLite replicas.
+Cloud/Edge	Vercel + Turso + Supabase	Vercel for serverless/edge API execution; Turso for edge-replicated SQLite; Supabase for Auth and PostgreSQL RLS.
+Bridge	WhatsApp Business API	Automated Checkout Flow for cart serialization and conversion via wa.me payloads.
+
+Service Worker Engine
+
+The engine utilizes Workbox to orchestrate caching strategies. Static assets follow a Cache-First strategy for instant loads. API calls are managed via a Network-First handler with a strict 10-second timeout specification (Source 2). If the network fails to respond within this window, the service worker falls back to the local IndexedDB state to prevent UI hang.
+
+3. Offline-First Storage & Client-Side Database
+
+Dexie.js & SQLite Implementation
+
+Dexie.js manages structured metadata, while Turso local replicas leverage Origin Private File System (OPFS) for native-speed persistence in 2025-ready browsers. This dual-layer ensures rapid relational queries even for multi-megabyte machinery catalogs.
+
+The Local Outbox Queue Pattern
+
+1. Immediate Local Write: Mutations are committed to IndexedDB with a syncStatus of pending.
+2. Optimistic UI Render: UI reflects changes instantly; financial logs appear in the dashboard immediately.
+3. Network Event Listener: The app monitors window.addEventListener('online', triggerSync).
+4. Batch Reconcile: Pending payloads are flushed to Vercel API endpoints. Upon cloud confirmation, syncStatus updates to synced.
+
+Metadata Requirements
+
+To facilitate the Relative Delta Transform logic, every local record must carry:
+
+* UUIDv4: Primary client-side identifier.
+* serverId: Null until reconciled; maps the client record to the remote relational row.
+* updated_at: Local timestamp for the LWW vector.
+* syncStatus: Enum (pending, synced, error).
+
+4. Database Schema & Sync Engine
+
+Cloud Persistence Model
+
+* Turso (SQLite at Edge): Utilized for per-user data siloing and low-latency replication of chat and field logs.
+* Supabase (Postgres): Authoritative source for Auth, global reporting, and multi-tenant RLS enforcement.
+
+Sync Mechanics & Conflict Resolution
+
+The default strategy is Last-Write-Wins (LWW) based on updated_at. However, for high-stakes financial increments, a Relative Delta Transform hook is implemented to ensure mathematical convergence:
+
+-- Relative Delta Transform Implementation
+UPDATE inventory_assets 
+SET stock_count = stock_count + ? 
+WHERE server_id = ?;
+
+
+Architectural Caveat: For sensitive data where a lost write is unacceptable (e.g., final financial balances), the system must bypass optimistic writes and remain synchronous against the primary cloud endpoint (Source 7).
+
+Warning: WAL Growth & Checkpointing Extended offline periods cause the Write-Ahead Log (WAL) to grow, degrading performance. Engineers must implement a background loop to optimize local WAL size using the db.checkpoint() method: if ((await db.stats()).mainWal > 100000) { await db.checkpoint(); }
+
+5. Zimbabwe-Centric Optimization: The WhatsApp Bundle Bridge
+
+The Social Conversion Bridge
+
+To bypass general data costs, the app implements an automated Checkout Flow. This serializes the user’s intent into a WhatsApp-native payload, shifting the transaction from expensive general data to the user’s WhatsApp bundle.
+
+Cart Serialization Logic
+
+The system reads the Cart store from IndexedDB and encodes the payload into the following URI format:
+
+URL = https://wa.me/263719450765?text=[Encoded_Cart_Payload]
+
+
+This triggers the native WhatsApp application with a pre-filled order summary, allowing for scalable conversion without a live web session.
+
+6. Security Architecture & Data Protection
+
+Native Database Encryption
+
+Turso provides page-level encryption for local replicas.
+
+* Encrypted: Database pages (4KiB units), the DB file, and the Write-Ahead Log (WAL).
+* Unencrypted: The first 100 bytes of the database header. Encryption Key Management: Keys are never stored on disk. They must be provided via the connection URI at runtime: file:replica.db?cipher=aegis256&hexkey=[32_BYTE_HEX_KEY]
+
+Cloud Access Controls (Supabase RLS)
+
+* Users read own profile: USING (auth.uid() = user_id)
+* Admins read all: USING (auth.jwt() ->> 'role' = 'admin')
+* Restrict Payment Info: USING (auth.uid() = user_id AND (auth.jwt() ->> 'client_id') IS NULL)
+  * Note: This ensures only direct user sessions, not third-party OAuth clients, access financial data.
+
+Token Management
+
+The system utilizes JWTs with fine-grained permissions (data_read, data_add). A strict 90-day expiration and mandatory rotation policy are enforced to mitigate the risk of token exfiltration from local storage.
+
+7. Bandwidth-Saver & Performance Protocols
+
+Asset Delivery & Quota Management
+
+1. Incremental Delta Updates: Workbox fetches only modified JSON segments.
+2. WebP Media: All machinery images (JCBs, concrete mixers) are served in WebP with srcset.
+3. Bandwidth Saver Toggle: User-facing setting to kill all prefetching in ultra-low signal zones.
+
+Quota Guard: The app must implement navigator.storage.estimate() to monitor local storage usage. A system notification is triggered when usage exceeds 80% of the browser's allocated limit to prevent silent sync failures.
+
+8. User Acceptance Criteria (Engineering Execution)
+
+Offline Transaction Scenario
+
+* Given: A field admin is in a zero-signal zone with a "pending" outbox.
+* When: The admin logs a $500 cash sale for a concrete mixer.
+* Then: The UI updates in <100ms, and the record is stored in IndexedDB with syncStatus: 'pending'.
+
+WhatsApp Checkout Scenario
+
+* Given: A prospect is using an Econet WhatsApp-only bundle.
+* When: The prospect clicks "Checkout via WhatsApp" for a generator.
+* Then: The app serializes the cart and opens the native WhatsApp app with a payload addressed to 263719450765.
+
+Sync Conflict Scenario
+
+* Given: Two admins update the same generator inventory while offline.
+* When: Both devices reconnect.
+* Then: The system must perform a WAL rebase before applying LWW resolution based on the updated_at timestamp.
+
+9. Implementation Checklist for Engineering
+
+PWA Installability Checklist
+
+* [ ] HTTPS: Strictly enforced; no mixed content.
+* [ ] Manifest: Valid manifest.json with standalone display mode.
+* [ ] Icons: 192px and 512px maskable icons included.
+* [ ] Service Worker: Registered via registerSW with Workbox.
+* [ ] Fetch Handler: Intercepts all network requests for offline fallback.
+
+Production Readiness
+
+1. Token Rotation: Confirm 90-day TTL on all JWTs.
+2. CORS Lock: Restrict all API origins specifically to abundance.co.zw subdomains; disable wildcards.
+3. Replica Sensitivity: Ensure no PII is stored in unencrypted local replicas; use OS-level encryption where necessary.
+4. Tenant Isolation: Verify that every query is filtered by tenant_id via RLS before deployment.

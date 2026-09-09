@@ -1,0 +1,132 @@
+Product Requirements Document (PRD): Abundance Solutions PWA
+
+1. Executive Summary & Strategic Business Goals
+
+In the Zimbabwean industrial sector, digital transformation is routinely throttled by a "connectivity gap." For Abundance Solutions, adopting an "offline-first" approach is not merely a technical preference; it is the definitive competitive advantage. By shifting the local device to be the primary source of truth, the platform ensures that business operations and commercial discovery remain resilient against intermittent network coverage and prohibitive mobile data tariffs. This strategy effectively transitions connectivity from a mandatory prerequisite to a background optimization.
+
+The primary objective is to overcome the friction of high data costs and unstable infrastructure. This PRD defines a dual-mission architecture:
+
+1. A Public Showroom: Providing Commercial Prospects with a high-performance, low-bandwidth environment to browse heavy industrial machinery (generators, excavators).
+2. An Operational Suite: Equipping Field Admins with robust tools for real-time inventory and financial tracking (Cash, EcoCash, and ZiG) that function regardless of signal strength.
+
+Success hinges on a design that respects user data constraints while providing a seamless, "always-on" experience. Achieving these goals requires an architecture built around the specific economic and technical behaviors of two primary user personas.
+
+2. User Personas: Commercial Prospect vs. Field Admin
+
+In low-bandwidth environments, user-centric design is the primary driver for reducing bounce rates and increasing operational efficiency. When every kilobyte represents a tangible cost in USD or ZiG, the platform must provide value instantly.
+
+Commercial Prospect
+
+* Profile: An industrial contractor or procurement lead looking for high-value assets such as concrete mixers or JCB units.
+* Key Needs: Needs "lightning-fast" access to product specifications without waiting for high-resolution images to load over congested 2G/3G connections.
+* Friction Points: High general internet data costs lead to session abandonment. They navigate a complex dual-currency environment (USD/ZiG) where data bundle selection is a strategic financial decision.
+* The Conversion Flow: They require a frictionless transition from browsing to purchasing, utilizing the "WhatsApp cart conversion" to leverage affordable, zero-rated, or social-bundle-specific data.
+
+Field Admin
+
+* Profile: A logistics manager or site supervisor responsible for tracking heavy equipment and logging multi-currency financial transactions in remote areas.
+* Key Needs: Secure, reliable data entry for inventory and cash logs while working in "dead zones" or deep within industrial sites where signals drop.
+* Friction Points: Traditional web apps cause data loss during signal drops, leading to reconciliation errors in inventory and financial logging.
+* The Requirement: Must trust that every log is saved locally and will synchronize with the cloud "Source of Truth" automatically once a signal is restored, without user intervention.
+
+These divergent user needs dictate an underlying technical architecture that prioritizes "Edge" persistence and intelligent background synchronization.
+
+3. Technical Architecture & Stack Deep-Dive
+
+The selected technology stack is strategically optimized for "Edge" computing and offline persistence, ensuring that data management occurs as close to the user as possible.
+
+Layer	Selected Technology	Architectural Purpose
+Frontend Build & Hosting	Vite + Vercel	Fast Hot Module Replacement (HMR), Workbox-powered caching, and serverless API execution for cloud sync.
+Client-Side Storage	Dexie.js (IndexedDB)	High-capacity local database for products, transaction outboxes, and multi-currency financial logs.
+Cloud Database	Turso (SQLite at Edge)	Relational cloud persistence with libSQL, supporting transactional sync and Row Level Security (RLS).
+Conversion Bridge	WhatsApp Click-to-Chat API	Social bundle arbitrage; bypasses expensive data by routing orders through WhatsApp bundles.
+
+Architectural Synergy & Hybrid Sync
+
+The system utilizes a hybrid synchronization model to guarantee eventual consistency.
+
+* Logical Mutations (Push): Local changes are pushed to the cloud as logical operations. This allows for flexible conflict resolution and ensures that only the delta of the change is transmitted.
+* Physical Pages (Pull): Remote changes are pulled as physical database pages. This ensures the local replica eventually becomes a byte-for-byte identical copy of the cloud state, maintaining high-fidelity data integrity for Field Admins.
+* Vite + Workbox: These tools manage the service worker manifest, allowing the application to load instantly from cache and providing the foundational layer for background sync events.
+
+4. Functional Requirements: The Offline-First Engine
+
+The core of the application is the Local Outbox Queue Pattern, ensuring zero data loss for financial and inventory integrity during environmental disruptions.
+
+The Sync Logic Flow
+
+1. Immediate Local Write: Mutations (e.g., logging a generator rental) are recorded to the local database with a syncStatus = 'pending' metadata tag and a unique UUIDv4.
+2. Optimistic UI: The dashboard updates instantly. The user is not blocked by "loading" states; the interface acts as if the server has already confirmed the action.
+3. Network Listener: The app monitors window.addEventListener('online') to trigger the synchronization engine.
+4. Batch Reconcile: Once connectivity is detected, pending outbox payloads are flushed. Upon cloud confirmation, the local status is updated to synced.
+
+Conflict Resolution & WAL Optimization
+
+* Conflict Strategy: The system employs a Last-Push-Wins strategy by default. If a conflict is detected at the logical level, the version pushed last to the cloud takes precedence. For more sophisticated logic, the system supports a custom transform hook to merge mutations based on business rules.
+* WAL Management: To prevent storage bloat on mobile field devices, the engine must implement the db.checkpoint() method. This sync-aware checkpoint optimizes the local Write-Ahead Log (WAL) size while preserving critical metadata on disk, ensuring the app remains lightweight over long-term use.
+
+5. The WhatsApp Bridge & Data Bundle Localization
+
+In the Zimbabwean market, "Social Bundle Arbitrage" is an economic necessity. Most users utilize Econet USD and ZiG WhatsApp bundles, which are significantly cheaper than general internet bundles.
+
+Cart Serialization Flow
+
+To facilitate checkout without general internet data, the e-commerce engine bridges the cached web cart to the native WhatsApp application:
+
+* Users browse cached inventory (e.g., JCB units, grinders) entirely offline.
+* The cart state is managed locally via IndexedDB.
+* Technical Construction: Upon clicking "Checkout," the system serializes the cart into a pre-encoded URL summary using the WhatsApp Click-to-Chat API (wa.me/263719450765).
+
+Sample URL Summary Payload:
+
+https://wa.me/263719450765?text=Order%20Summary%3A%0A-%20Generator%20(15kVA)%0A-%20Concrete%20Mixer%0ATotal%3A%20%241200%20ZiG
+
+
+By routing the transaction through this bridge, the platform allows the Commercial Prospect to complete the purchase using their low-cost social bundles, bypassing the need for an active, high-cost general data session.
+
+6. Performance Optimization & Bandwidth Saver Protocols
+
+To respect strict user data limits, the platform regulates asset delivery through incremental updates and intelligent asset compression.
+
+* Bandwidth Saver Toggle: A strategic feature that disables high-definition image prefetching. When active, the UI serves lightweight text summaries and low-resolution thumbnails instead of 4K machinery photography.
+* Incremental Delta Updates: Utilizing Workbox manifest strategies, the app only downloads altered JSON data blocks. This ensures that an inventory update involving 100 items only consumes the data required for the changed bytes, not the entire bundle.
+* Media Asset Optimization: All heavy machinery images are served in WebP format using responsive srcset attributes. This ensures the device only fetches the resolution appropriate for the specific screen, further conserving bandwidth.
+
+7. Security, Authentication, and Data Protection
+
+Offline-first applications follow a "Shared Responsibility Model." Because sensitive data resides on the local device, robust encryption is non-negotiable.
+
+Native Encryption Architecture
+
+Local database replicas must utilize page-level encryption at rest using the AEGIS-256 algorithm.
+
+* Reserved Space: Encryption metadata, including the nonce and authentication tag, must be stored within the SQLite reserved space on each page to protect against tampering and corruption.
+* Key Hygiene: Encryption keys must remain in-memory only and never be stored on the physical disk. Keys are provided per connection to ensure data remains unreadable if the device is stolen.
+
+Identity & Access Governance
+
+* JWT-Based Scoped Tokens: Authentication for Turso Sync will utilize fine-grained tokens with restricted permissions (e.g., data_read, data_add). Tokens must be short-lived (90-day rotation) to minimize exposure.
+* Supabase Row Level Security (RLS): Within the cloud layer, RLS policies must be enforced using auth.uid() claims. This ensures that a Field Admin from one site cannot view or modify the logs of an Admin at another site.
+
+8. User Acceptance Criteria (UAC) & Analytics Plan
+
+Tracking "PWA Lifecycle Metrics" is vital to measure success in high-friction environments.
+
+User Acceptance Criteria
+
+Feature	Acceptance Criteria
+Offline Outbox	Admin can log 10 financial entries in "Airplane Mode"; db.checkpoint() must trigger to maintain WAL size < 10MB.
+WhatsApp Checkout	Commercial Prospect can generate a pre-filled WhatsApp message using only a ZiG social data bundle.
+Bandwidth Toggle	Activating the toggle reduces total session payload by at least 70% during machinery catalog browsing.
+Conflict Resolution	In a race condition, the system successfully resolves via "Last-Push-Wins" without corrupting the local replica.
+
+Analytics & Monitoring
+
+The platform will utilize connectivity listeners to track specific behavioral and health metrics:
+
+* PWA Installation Rates: Conversion rate of web visitors to "Home Screen" users.
+* Sync Latency: Measuring the time delta from a local offline write to successful server reconciliation.
+* Bandwidth Saver Usage: Frequency of toggle activation as a proxy for network stress.
+* Offline Ready Events: Successful service worker activation and asset precaching verification.
+
+This PRD establishes the framework for a resilient, market-aware platform that transforms the infrastructural challenges of Zimbabwe into a primary operational strength.

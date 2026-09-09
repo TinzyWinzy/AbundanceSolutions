@@ -1,0 +1,60 @@
+# PowerSync Sync Streams (edition 3)
+# Deploy via PowerSync Dashboard -> Sync Streams, or `npx powersync instance sync-rules deploy`.
+
+config:
+  edition: 3
+
+streams:
+  # Organisation-level reference data (auto-synced for every org member)
+  org_data:
+    auto_subscribe: true
+    with:
+      user_org: |
+        SELECT organization_id FROM profiles WHERE id = auth.user_id()
+    queries:
+      - SELECT * FROM organizations WHERE id IN user_org
+      - SELECT * FROM categories WHERE organization_id IN user_org
+      - SELECT * FROM sites WHERE organization_id IN user_org
+      - SELECT * FROM profiles WHERE organization_id IN user_org
+
+  # Site assignments (join through sites to enforce org scope)
+  site_assignments:
+    auto_subscribe: true
+    with:
+      user_org: |
+        SELECT organization_id FROM profiles WHERE id = auth.user_id()
+    query: |
+      SELECT site_assignments.*
+      FROM site_assignments
+      INNER JOIN sites ON site_assignments.site_id = sites.id
+      WHERE sites.organization_id IN user_org
+
+  # Inventory catalog
+  inventory:
+    auto_subscribe: true
+    with:
+      user_org: |
+        SELECT organization_id FROM profiles WHERE id = auth.user_id()
+    query: SELECT * FROM inventory_assets WHERE organization_id IN user_org
+
+  # Financial logs
+  financial_logs:
+    auto_subscribe: true
+    with:
+      user_org: |
+        SELECT organization_id FROM profiles WHERE id = auth.user_id()
+    query: SELECT * FROM financial_logs WHERE organization_id IN user_org
+
+  # Orders + order items
+  orders:
+    auto_subscribe: true
+    with:
+      user_org: |
+        SELECT organization_id FROM profiles WHERE id = auth.user_id()
+    queries:
+      - SELECT * FROM orders WHERE organization_id IN user_org
+      - |
+        SELECT order_items.*
+        FROM order_items
+        INNER JOIN orders ON order_items.order_id = orders.id
+        WHERE orders.organization_id IN user_org
