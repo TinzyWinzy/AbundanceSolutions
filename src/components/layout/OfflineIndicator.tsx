@@ -1,7 +1,7 @@
 import { useStatus } from '@powersync/react';
 import { useEffect, useState } from 'react';
 
-export function OfflineIndicator() {
+function useSyncState() {
   const status = useStatus();
   const [online, setOnline] = useState(navigator.onLine);
 
@@ -17,44 +17,39 @@ export function OfflineIndicator() {
   }, []);
 
   const connected = status?.connected ?? false;
-  const hasPending = status?.hasSynced === false;
-
-  if (online && connected && !hasPending) {
-    return null;
-  }
+  const pending = status?.hasSynced === false;
+  const ok = online && connected && !pending;
 
   const label = !online
     ? 'Offline — changes saved locally'
     : !connected
       ? 'Connecting…'
-      : 'Syncing pending changes…';
+      : 'Syncing…';
 
   const color = !online ? '#f59e0b' : '#16a34a';
+  return { ok, label, color };
+}
+
+/** Compact pill for the desktop header row. */
+export function OfflineIndicator() {
+  const { ok, label, color } = useSyncState();
+  if (ok) return null;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        color,
-        background: 'var(--surface-2)',
-        padding: '4px 10px',
-        borderRadius: 999
-      }}
-      role="status"
-    >
-      <span
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: color,
-          display: 'inline-block'
-        }}
-      />
+    <div className="sync-pill" role="status" style={{ color }}>
+      <span className="sync-dot" style={{ background: color }} />
+      {label}
+    </div>
+  );
+}
+
+/** Full-width strip under the header on mobile. */
+export function OfflineStrip() {
+  const { ok, label, color } = useSyncState();
+  if (ok) return null;
+
+  return (
+    <div className="sync-strip" role="status" style={{ background: color }}>
       {label}
     </div>
   );
