@@ -58,3 +58,33 @@ streams:
         FROM order_items
         INNER JOIN orders ON order_items.order_id = orders.id
         WHERE orders.organization_id IN user_org
+
+  # Exchange rates (org reference data for offline invoice issuance)
+  exchange_rates:
+    auto_subscribe: true
+    with:
+      user_org: |
+        SELECT organization_id FROM profiles WHERE id = auth.user_id()
+    query: SELECT * FROM exchange_rates WHERE organization_id IN user_org
+
+  # Pro-forma invoices + line items
+  invoices:
+    auto_subscribe: true
+    with:
+      user_org: |
+        SELECT organization_id FROM profiles WHERE id = auth.user_id()
+    queries:
+      - SELECT * FROM pro_forma_invoices WHERE organization_id IN user_org
+      - |
+        SELECT invoice_line_items.*
+        FROM invoice_line_items
+        INNER JOIN pro_forma_invoices ON invoice_line_items.invoice_id = pro_forma_invoices.id
+        WHERE pro_forma_invoices.organization_id IN user_org
+
+  # Payment receipts
+  receipts:
+    auto_subscribe: true
+    with:
+      user_org: |
+        SELECT organization_id FROM profiles WHERE id = auth.user_id()
+    query: SELECT * FROM payment_receipts WHERE organization_id IN user_org

@@ -103,3 +103,146 @@ export async function createFinancialLog(db: PowerSyncDatabase, input: Financial
   );
   return id;
 }
+
+export interface InvoiceLineInput {
+  assetId: string | null;
+  description: string;
+  quantity: number;
+  unitPriceUsd: number;
+}
+
+export interface InvoiceInput {
+  organizationId: string;
+  userId: string;
+  invoiceNumber: string;
+  customerName: string;
+  customerPhone: string;
+  customerTaxId?: string;
+  lines: InvoiceLineInput[];
+  vatUsd: number;
+  appliedRateZig: number;
+  validUntil: string;
+}
+
+/**
+ * Creates an invoice and its line items in a single write transaction so
+ * they share one CRUD transaction id and upload atomically (FK-safe).
+ */
+export async function createInvoice(db: PowerSyncDatabase, input: InvoiceInput) {
+  const subtotalUsd = round2(
+    input.lines.reduce((s, l) => s + l.quantity * l.unitPriceUsd, 0)
+  );
+  const totalUsd = round2(subtotalUsd + input.vatUsd);
+  const totalZig = round2(totalUsd * input.appliedRateZig);
+
+  const id = uuid();
+  const ts = now();
+
+  await db.writeTransaction(async (tx) => {
+    await tx.execute(
+      `INSERT INTO pro_forma_invoices
+        (id, organization_id, invoice_number, customer_name, customer_phone,
+         customer_tax_id, subtotal_usd, vat_usd, total_usd, applied_rate_zig,
+         total_zig, status, valid_until, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'issued', ?, ?, ?, ?)`,
+      [
+        id,
+        input.organizationId,
+        input.invoiceNumber,
+        input.customerName,
+        input.customerPhone,
+        input.customerTaxId ?? null,
+        subtotalUsd,
+        input.vatUsd,
+        totalUsd,
+        input.appliedRateZig,
+        totalZig,
+        input.validUntil,
+        input.userId,
+        ts,
+        ts
+      ]
+    );
+
+    for (const line of input.lines) {
+      await tx.execute(
+        `INSERT INTO invoice_line_items
+          (id, invoice_id, asset_id, description, quantity, unit_price_usd, total_price_usd)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          uuid(),
+          id,
+          line.assetId,
+          line.description,
+          line.quantity,
+          line.unitPriceUsd,
+          round2(line.quantity * line.unitPriceUsd)
+        ]
+      );
+    }
+  });
+
+  return id;
+}
+
+export async function cancelInvoice(db: PowerSyncDatabase, id: string) {
+  await db.execute(
+    "UPDATE pro_forma_invoices SET status = 'cancelled', updated_at = ? WHERE id = ? AND status IN ('draft', 'issued')",
+    [now(), id]
+  );
+}
+
+export interface ReceiptInput {
+  organizationId: string;
+  userId: string;
+  invoiceId: string;
+  receiptNumber: string;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  referenceNumber?: string;
+}
+
+export async function recordReceipt(db: PowerSyncDatabase, input: ReceiptInput) {
+  const id = uuid();
+  await db.execute(
+    `INSERT INTO payment_receipts
+      (id, organization_id, receipt_number, invoice_id, amount_paid, currency,
+       payment_method, reference_number, collected_by, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.organizationId,
+      input.receiptNumber,
+      input.invoiceId,
+      input.amount,
+      input.currency,
+      input.paymentMethod,
+      input.referenceNumber ?? null,
+      input.userId,
+      now()
+    ]
+  );
+  return id;
+}
+
+export async function saveExchangeRate(
+  db: PowerSyncDatabase,
+  organizationId: string,
+  userId: string,
+  rate: number
+) {
+  const id = uuid();
+  const ts = now();
+  await db.execute(
+    `INSERT INTO exchange_rates
+      (id, organization_id, currency_pair, effective_at, official_rate, created_by, created_at)
+     VALUES (?, ?, 'USD_ZIG', ?, ?, ?, ?)`,
+    [id, organizationId, ts, rate, userId, ts]
+  );
+  return id;
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}

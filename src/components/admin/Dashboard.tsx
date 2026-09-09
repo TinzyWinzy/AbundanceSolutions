@@ -10,8 +10,9 @@ import { InventoryTable } from './InventoryTable';
 import { InventoryForm } from './InventoryForm';
 import { FinancialLogTable } from './FinancialLogTable';
 import { FinancialLogForm } from './FinancialLogForm';
+import { Invoices } from './Invoices';
 
-type Tab = 'inventory' | 'logs';
+type Tab = 'inventory' | 'logs' | 'invoices';
 
 export function Dashboard() {
   const [tab, setTab] = useState<Tab>('inventory');
@@ -86,14 +87,20 @@ export function Dashboard() {
           >
             Transactions
           </button>
+          <button
+            className={`btn ${tab === 'invoices' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setTab('invoices')}
+          >
+            Invoices
+          </button>
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
           {tab === 'inventory' ? (
             <Button onClick={() => setInventoryModal(true)}>Add equipment</Button>
-          ) : (
+          ) : tab === 'logs' ? (
             <Button onClick={() => setLogModal(true)}>Log transaction</Button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -101,8 +108,10 @@ export function Dashboard() {
         <Spinner />
       ) : tab === 'inventory' ? (
         <InventoryTable assets={assets} />
-      ) : (
+      ) : tab === 'logs' ? (
         <FinancialLogTable logs={logs} />
+      ) : (
+        <Invoices assets={assets} />
       )}
 
       <Modal open={inventoryModal} title="Add equipment" onClose={() => setInventoryModal(false)}>

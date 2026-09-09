@@ -144,6 +144,79 @@ export const order_items = new Table(
   { indexes: { order: ['order_id'] } }
 );
 
+export const exchange_rates = new Table(
+  {
+    organization_id: column.text,
+    currency_pair: column.text,
+    official_rate: column.real,
+    effective_at: column.text,
+    created_by: column.text,
+    created_at: column.text
+  },
+  { indexes: { org: ['organization_id'] } }
+);
+
+export const pro_forma_invoices = new Table(
+  {
+    organization_id: column.text,
+    invoice_number: column.text,
+    quotation_id: column.text,
+    customer_name: column.text,
+    customer_phone: column.text,
+    customer_tax_id: column.text,
+    subtotal_usd: column.real,
+    vat_usd: column.real,
+    total_usd: column.real,
+    applied_rate_zig: column.real,
+    total_zig: column.real,
+    status: column.text,
+    valid_until: column.text,
+    created_by: column.text,
+    created_at: column.text,
+    updated_at: column.text
+  },
+  {
+    indexes: {
+      org: ['organization_id'],
+      number: ['invoice_number'],
+      status: ['status']
+    }
+  }
+);
+
+export const invoice_line_items = new Table(
+  {
+    invoice_id: column.text,
+    asset_id: column.text,
+    description: column.text,
+    quantity: column.integer,
+    unit_price_usd: column.real,
+    total_price_usd: column.real
+  },
+  { indexes: { invoice: ['invoice_id'] } }
+);
+
+export const payment_receipts = new Table(
+  {
+    organization_id: column.text,
+    receipt_number: column.text,
+    invoice_id: column.text,
+    amount_paid: column.real,
+    currency: column.text,
+    payment_method: column.text,
+    reference_number: column.text,
+    collected_by: column.text,
+    created_at: column.text
+  },
+  {
+    indexes: {
+      org: ['organization_id'],
+      invoice: ['invoice_id'],
+      number: ['receipt_number']
+    }
+  }
+);
+
 export const AppSchema = new Schema({
   organizations,
   profiles,
@@ -153,13 +226,21 @@ export const AppSchema = new Schema({
   inventory_assets,
   financial_logs,
   orders,
-  order_items
+  order_items,
+  exchange_rates,
+  pro_forma_invoices,
+  invoice_line_items,
+  payment_receipts
 });
 
 export type Database = (typeof AppSchema)['types'];
 export type InventoryAsset = Database['inventory_assets'];
 export type FinancialLog = Database['financial_logs'];
 export type Order = Database['orders'];
+export type ExchangeRate = Database['exchange_rates'];
+export type ProFormaInvoice = Database['pro_forma_invoices'];
+export type InvoiceLineItem = Database['invoice_line_items'];
+export type PaymentReceipt = Database['payment_receipts'];
 export type Category = Database['categories'];
 export type Site = Database['sites'];
 export type Profile = Database['profiles'];
