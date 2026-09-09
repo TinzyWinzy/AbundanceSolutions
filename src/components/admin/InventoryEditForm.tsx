@@ -1,68 +1,78 @@
 import { usePowerSync } from '@powersync/react';
 import { useState } from 'react';
-import type { Category, Site } from '@/lib/powersync/AppSchema';
-import { createInventoryAsset } from '@/lib/powersync/mutations';
+import type { Category, InventoryAsset, Site } from '@/lib/powersync/AppSchema';
+import {
+  countAssetReferences,
+  deleteInventoryAsset,
+  updateInventoryAsset
+} from '@/lib/powersync/mutations';
 import { uploadMachineImage } from '@/lib/storage/uploadImage';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Field, Input, Select, Textarea } from '@/components/ui/Field';
 import { ImagePicker } from './ImagePicker';
 import { ASSET_STATUSES } from '@/utils/constants';
 
-interface InventoryFormProps {
+interface InventoryEditFormProps {
+  asset: InventoryAsset;
   categories: Category[];
   sites: Site[];
   onDone: () => void;
 }
 
-export function InventoryForm({ categories, sites, onDone }: InventoryFormProps) {
+export function InventoryEditForm({ asset, categories, sites, onDone }: InventoryEditFormProps) {
   const db = usePowerSync();
-  const { profile } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    name: '',
-    categoryId: '',
-    description: '',
-    sku: '',
-    priceUsd: '',
-    priceZig: '',
-    stockCount: '0',
-    status: 'available',
-    siteId: ''
+    name: asset.name ?? '',
+    categoryId: asset.category_id ?? '',
+    description: asset.description ?? '',
+    sku: asset.sku ?? '',
+    priceUsd: asset.price_usd != null ? String(asset.price_usd) : '',
+    priceZig: asset.price_zig != null ? String(asset.price_zig) : '',
+    stockCount: String(asset.stock_count ?? 0),
+    minStock: String(asset.min_stock ?? 0),
+    status: asset.status ?? 'available',
+    siteId: asset.site_id ?? ''
   });
-  const [photo, setPhoto] = useState<File | null>(null);
+  // null = untouched, File = replace, 'REMOVE' = strip photo
+  const [photo, setPhoto] = useState<File | 'REMOVE' | null>(null);
 
   const set = (key: keyof typeof form) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  const handlePhoto = (file: File | null) => {
+    // Null after picking a new file means "drop the pick, keep existing".
+    // Null with no pick in flight means "strip the existing photo".
+    if (file) {
+      setPhoto(file);
+    } else {
+      setPhoto((prev) => (prev instanceof File ? null : asset.thumbnail_url ? 'REMOVE' : null));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) {
-      setError('You must be signed in to add equipment.');
-      return;
-    }
     if (!form.name.trim()) {
       setError('Name is required.');
       return;
     }
-
     setSaving(true);
     setError(null);
     try {
-      let thumbnailUrl: string | null = null;
-      let imageUrls = '[]';
-      if (photo) {
-        if (!navigator.onLine) {
-          // Offline: save the listing now, photo can be added on edit later.
-        } else {
-          thumbnailUrl = await uploadMachineImage(photo);
-          imageUrls = JSON.stringify([thumbnailUrl]);
-        }
+      let thumbnailUrl = asset.thumbnail_url;
+      let imageUrls = asset.image_urls ?? '[]';
+      if (photo instanceof File) {
+        const url = await uploadMachineImage(photo);
+        thumbnailUrl = url;
+        imageUrls = JSON.stringify([url]);
+      } else if (photo === 'REMOVE') {
+        thumbnailUrl = null;
+        imageUrls = '[]';
       }
-      await createInventoryAsset(db, {
-        organizationId: profile.organization_id,
+      await updateInventoryAsset(db, asset.id, {
         categoryId: form.categoryId || null,
         name: form.name.trim(),
         description: form.description.trim() || undefined,
@@ -70,6 +80,7 @@ export function InventoryForm({ categories, sites, onDone }: InventoryFormProps)
         priceUsd: form.priceUsd ? Number(form.priceUsd) : null,
         priceZig: form.priceZig ? Number(form.priceZig) : null,
         stockCount: Number(form.stockCount) || 0,
+        minStock: Number(form.minStock) || 0,
         status: form.status,
         siteId: form.siteId || null,
         thumbnailUrl,
@@ -80,6 +91,30 @@ export function InventoryForm({ categories, sites, onDone }: InventoryFormProps)
       setError(err instanceof Error ? err.message : 'Failed to save.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Delete "${asset.name}" permanently?`)) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const refs = await countAssetReferences(db, asset.id);
+      const total = refs.orderItems + refs.lineItems + refs.financialLogs;
+      if (total > 0) {
+        setError(
+          `Cannot delete: this item appears in ${refs.orderItems} order(s), ` +
+            `${refs.lineItems} invoice line(s) and ${refs.financialLogs} transaction(s). ` +
+            `Set its status to "sold" instead to preserve history.`
+        );
+        return;
+      }
+      await deleteInventoryAsset(db, asset.id);
+      onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -129,13 +164,21 @@ export function InventoryForm({ categories, sites, onDone }: InventoryFormProps)
         </Field>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <Field label="Stock count">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+        <Field label="Stock">
           <Input
             type="number"
             min="0"
             value={form.stockCount}
             onChange={(e) => set('stockCount')(e.target.value)}
+          />
+        </Field>
+        <Field label="Low-stock at">
+          <Input
+            type="number"
+            min="0"
+            value={form.minStock}
+            onChange={(e) => set('minStock')(e.target.value)}
           />
         </Field>
         <Field label="Status">
@@ -164,13 +207,26 @@ export function InventoryForm({ categories, sites, onDone }: InventoryFormProps)
         <Input value={form.sku} onChange={(e) => set('sku')(e.target.value)} />
       </Field>
 
-      <ImagePicker currentUrl={null} onFile={setPhoto} />
+      <ImagePicker
+        currentUrl={photo === 'REMOVE' ? null : (asset.thumbnail_url ?? null)}
+        onFile={handlePhoto}
+      />
 
       {error ? <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{error}</p> : null}
 
-      <Button type="submit" block disabled={saving}>
-        {saving ? 'Saving…' : 'Save equipment'}
-      </Button>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Button type="submit" disabled={saving || deleting} style={{ flex: 1 }}>
+          {saving ? 'Saving…' : 'Save changes'}
+        </Button>
+        <Button
+          type="button"
+          variant="danger"
+          disabled={saving || deleting}
+          onClick={handleDelete}
+        >
+          {deleting ? 'Deleting…' : 'Delete'}
+        </Button>
+      </div>
     </form>
   );
 }

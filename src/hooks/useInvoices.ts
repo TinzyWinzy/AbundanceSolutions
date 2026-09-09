@@ -31,6 +31,14 @@ export function useLatestRate() {
   return { rate: data?.[0] ?? null };
 }
 
+export function useAllReceipts(limit = 500) {
+  const { data: receipts } = useQuery<Database['payment_receipts']>(
+    'SELECT * FROM payment_receipts ORDER BY created_at DESC LIMIT ?',
+    [limit]
+  );
+  return { receipts: receipts ?? [] };
+}
+
 /** USD-equivalent received across receipts using the invoice's own rate. */
 export function receivedUsd(
   receipts: Pick<Database['payment_receipts'], 'amount_paid' | 'currency'>[],

@@ -5,7 +5,13 @@ import { formatUSD } from '@/utils/format';
 import { EmptyState } from '@/components/ui/States';
 import { ASSET_STATUSES } from '@/utils/constants';
 
-export function InventoryTable({ assets }: { assets: InventoryAsset[] }) {
+export function InventoryTable({
+  assets,
+  onEdit
+}: {
+  assets: InventoryAsset[];
+  onEdit: (asset: InventoryAsset) => void;
+}) {
   const db = usePowerSync();
 
   if (assets.length === 0) {
@@ -22,6 +28,7 @@ export function InventoryTable({ assets }: { assets: InventoryAsset[] }) {
             <th>Stock</th>
             <th>USD</th>
             <th>ZiG</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -52,6 +59,15 @@ export function InventoryTable({ assets }: { assets: InventoryAsset[] }) {
               </td>
               <td>{asset.price_usd != null ? formatUSD(asset.price_usd) : '—'}</td>
               <td>{asset.price_zig != null ? `ZiG ${asset.price_zig.toLocaleString()}` : '—'}</td>
+              <td>
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                  onClick={() => onEdit(asset)}
+                >
+                  Edit
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

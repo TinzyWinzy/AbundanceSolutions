@@ -15,6 +15,8 @@ export interface InventoryInput {
   minStock?: number;
   status?: string;
   siteId?: string | null;
+  thumbnailUrl?: string | null;
+  imageUrls?: string | null;
 }
 
 export interface FinancialLogInput {
@@ -50,8 +52,8 @@ export async function createInventoryAsset(db: PowerSyncDatabase, input: Invento
       input.priceZig,
       input.stockCount,
       input.minStock ?? 0,
-      '[]',
-      null,
+      input.imageUrls ?? '[]',
+      input.thumbnailUrl ?? null,
       '{}',
       input.status ?? 'available',
       input.siteId ?? null,
@@ -60,6 +62,73 @@ export async function createInventoryAsset(db: PowerSyncDatabase, input: Invento
     ]
   );
   return id;
+}
+
+export interface InventoryUpdate {
+  categoryId: string | null;
+  name: string;
+  description?: string;
+  sku?: string;
+  priceUsd: number | null;
+  priceZig: number | null;
+  stockCount: number;
+  minStock: number;
+  status: string;
+  siteId: string | null;
+  thumbnailUrl: string | null;
+  imageUrls: string;
+}
+
+export async function updateInventoryAsset(
+  db: PowerSyncDatabase,
+  id: string,
+  input: InventoryUpdate
+) {
+  await db.execute(
+    `UPDATE inventory_assets SET
+      category_id = ?, name = ?, description = ?, sku = ?,
+      price_usd = ?, price_zig = ?, stock_count = ?, min_stock = ?,
+      thumbnail_url = ?, image_urls = ?, status = ?, site_id = ?,
+      updated_at = ?
+     WHERE id = ?`,
+    [
+      input.categoryId,
+      input.name,
+      input.description ?? null,
+      input.sku ?? null,
+      input.priceUsd,
+      input.priceZig,
+      input.stockCount,
+      input.minStock,
+      input.thumbnailUrl,
+      input.imageUrls,
+      input.status,
+      input.siteId,
+      now(),
+      id
+    ]
+  );
+}
+
+export async function deleteInventoryAsset(db: PowerSyncDatabase, id: string) {
+  await db.execute('DELETE FROM inventory_assets WHERE id = ?', [id]);
+}
+
+/** Counts local references that would block deletion (history protection). */
+export async function countAssetReferences(
+  db: PowerSyncDatabase,
+  id: string
+): Promise<{ orderItems: number; lineItems: number; financialLogs: number }> {
+  const [orderItems, lineItems, financialLogs] = await Promise.all([
+    db.getAll<{ n: number }>('SELECT COUNT(*) AS n FROM order_items WHERE asset_id = ?', [id]),
+    db.getAll<{ n: number }>('SELECT COUNT(*) AS n FROM invoice_line_items WHERE asset_id = ?', [id]),
+    db.getAll<{ n: number }>('SELECT COUNT(*) AS n FROM financial_logs WHERE asset_id = ?', [id])
+  ]);
+  return {
+    orderItems: orderItems[0]?.n ?? 0,
+    lineItems: lineItems[0]?.n ?? 0,
+    financialLogs: financialLogs[0]?.n ?? 0
+  };
 }
 
 export async function updateAssetStatus(db: PowerSyncDatabase, id: string, status: string) {

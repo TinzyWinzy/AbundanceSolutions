@@ -10,15 +10,17 @@ import { InventoryTable } from './InventoryTable';
 import { InventoryForm } from './InventoryForm';
 import { FinancialLogTable } from './FinancialLogTable';
 import { FinancialLogForm } from './FinancialLogForm';
+import { InventoryEditForm } from './InventoryEditForm';
 import { Invoices } from './Invoices';
 import { Orders } from './Orders';
-
-type Tab = 'inventory' | 'logs' | 'invoices' | 'orders';
+import { Overview, type AdminTab } from './Overview';
+import type { InventoryAsset } from '@/lib/powersync/AppSchema';
 
 export function Dashboard() {
-  const [tab, setTab] = useState<Tab>('inventory');
+  const [tab, setTab] = useState<AdminTab>('overview');
   const [inventoryModal, setInventoryModal] = useState(false);
   const [logModal, setLogModal] = useState(false);
+  const [editing, setEditing] = useState<InventoryAsset | null>(null);
 
   const status = useStatus();
   const { assets, isLoading } = useInventory();
@@ -75,7 +77,13 @@ export function Dashboard() {
           flexWrap: 'wrap'
         }}
       >
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            className={`btn ${tab === 'overview' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setTab('overview')}
+          >
+            Overview
+          </button>
           <button
             className={`btn ${tab === 'inventory' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setTab('inventory')}
@@ -111,10 +119,12 @@ export function Dashboard() {
         </div>
       </div>
 
-      {isLoading ? (
+      {tab === 'overview' ? (
+        <Overview onNavigate={setTab} />
+      ) : isLoading ? (
         <Spinner />
       ) : tab === 'inventory' ? (
-        <InventoryTable assets={assets} />
+        <InventoryTable assets={assets} onEdit={setEditing} />
       ) : tab === 'logs' ? (
         <FinancialLogTable logs={logs} />
       ) : tab === 'invoices' ? (
@@ -133,6 +143,22 @@ export function Dashboard() {
 
       <Modal open={logModal} title="Log transaction" onClose={() => setLogModal(false)}>
         <FinancialLogForm assets={assets} sites={sites} onDone={() => setLogModal(false)} />
+      </Modal>
+
+      <Modal
+        open={editing !== null}
+        title={editing ? `Edit ${editing.name}` : 'Edit equipment'}
+        onClose={() => setEditing(null)}
+      >
+        {editing ? (
+          <InventoryEditForm
+            key={editing.id}
+            asset={editing}
+            categories={categories}
+            sites={sites}
+            onDone={() => setEditing(null)}
+          />
+        ) : null}
       </Modal>
     </div>
   );
