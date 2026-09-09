@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { InstallPrompt } from '@/components/layout/InstallPrompt';
+import { SiteFooter } from '@/components/layout/SiteFooter';
 import { PowerSyncProvider } from '@/lib/powersync/PowerSyncProvider';
 import { AdminPage } from '@/pages/AdminPage';
 import { CheckoutPage } from '@/pages/CheckoutPage';
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
+        <SiteFooter />
         <InstallPrompt />
       </BrowserRouter>
     </PowerSyncProvider>

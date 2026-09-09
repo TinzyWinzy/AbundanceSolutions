@@ -59,13 +59,15 @@ export function LandingPage() {
 
   return (
     <div>
-      {/* HERO */}
+      {/* HERO — full bleed */}
       <section
         style={{
           position: 'relative',
-          borderRadius: 16,
+          width: '100vw',
+          marginLeft: 'calc(50% - 50vw)',
+          marginTop: -24,
           overflow: 'hidden',
-          minHeight: 380,
+          minHeight: '72vh',
           display: 'flex',
           alignItems: 'flex-end',
           background: '#0f172a'
@@ -86,48 +88,56 @@ export function LandingPage() {
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(to top, rgba(10,10,10,0.82) 20%, rgba(10,10,10,0.15) 70%)'
+            background: 'linear-gradient(to top, rgba(10,10,10,0.85) 20%, rgba(10,10,10,0.15) 70%)'
           }}
         />
-        <div style={{ position: 'relative', padding: 24, color: '#fff', maxWidth: 560 }}>
+        <div className="container" style={{ position: 'relative', width: '100%' }}>
           <div
             style={{
-              display: 'inline-block',
-              background: 'var(--primary)',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-              letterSpacing: '0.08em',
-              padding: '4px 10px',
-              borderRadius: 999,
-              marginBottom: 10
+              padding: '48px 0',
+              color: '#fff',
+              maxWidth: 600
             }}
           >
-            HARARE · HEAVY MACHINERY & TOOLS
-          </div>
-          <h1 style={{ margin: '0 0 8px', fontSize: '2rem', lineHeight: 1.1 }}>
-            Site-ready machinery. Enquire over WhatsApp.
-          </h1>
-          <p style={{ margin: '0 0 18px', opacity: 0.92 }}>
-            Excavators, generators, mixers and INGCO power tools — real stock, real prices, no
-            data-heavy browsing.
-          </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <Link
-              to="/store"
-              className="btn"
-              style={{ background: 'var(--primary)', color: '#fff', padding: '12px 22px' }}
+            <div
+              style={{
+                display: 'inline-block',
+                background: 'var(--primary)',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+                padding: '4px 10px',
+                borderRadius: 999,
+                marginBottom: 10
+              }}
             >
-              Browse equipment
-            </Link>
-            <a
-              className="btn"
-              style={{ background: 'rgba(255,255,255,0.14)', color: '#fff', padding: '12px 22px' }}
-              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hello Abundance Solutions, I need equipment.')}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              WhatsApp us
-            </a>
+              ZIMBABWE · HEAVY MACHINERY & TOOLS
+            </div>
+            <h1 style={{ margin: '0 0 8px', fontSize: '2.4rem', lineHeight: 1.05 }}>
+              Site-ready machinery. Enquire over WhatsApp.
+            </h1>
+            <p style={{ margin: '0 0 18px', opacity: 0.92, fontSize: '1.05rem' }}>
+              Excavators, generators, mixers and INGCO power tools — real stock, real prices,
+              no data-heavy browsing.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link
+                to="/store"
+                className="btn"
+                style={{ background: 'var(--primary)', color: '#fff', padding: '14px 26px' }}
+              >
+                Browse equipment
+              </Link>
+              <a
+                className="btn"
+                style={{ background: 'rgba(255,255,255,0.14)', color: '#fff', padding: '14px 26px' }}
+                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hello Abundance Solutions, I need equipment.')}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                WhatsApp us
+              </a>
+            </div>
           </div>
         </div>
       </section>
