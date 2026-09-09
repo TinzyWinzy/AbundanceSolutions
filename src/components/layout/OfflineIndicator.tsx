@@ -42,7 +42,7 @@ function useSyncState() {
   if (!online) {
     return {
       ok: false,
-      label: hasSession ? 'Offline — changes saved locally' : 'Offline — browsing cached catalog',
+      label: hasSession ? 'Offline: changes saved locally' : 'Offline: browsing cached catalog',
       color: '#f59e0b'
     };
   }
@@ -50,7 +50,7 @@ function useSyncState() {
     return { ok: true, label: '', color: '' };
   }
   if (failed) {
-    return { ok: false, label: 'Sync unavailable — working locally', color: '#dc2626' };
+    return { ok: false, label: 'Sync unavailable: working locally', color: '#dc2626' };
   }
   if (!connected || pending) {
     return {

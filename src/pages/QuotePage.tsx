@@ -35,10 +35,10 @@ export function QuotePage() {
             })
           : null;
         setRateNote(
-          `Live rate${when ? ` as of ${when}` : ''}${live.stale ? ' (cached — offline)' : ''}`
+          `Live rate${when ? ` as of ${when}` : ''}${live.stale ? ' (cached, offline)' : ''}`
         );
       } else {
-        setRateNote('No live rate published — enter the day\u2019s rate manually.');
+        setRateNote('No live rate published. Enter the day\u2019s rate manually.');
       }
     } finally {
       setRateLoading(false);
@@ -94,7 +94,7 @@ export function QuotePage() {
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
       <h1 style={{ fontSize: '1.5rem', marginBottom: 4 }}>Build a quotation</h1>
       <p style={{ color: 'var(--text-muted)', marginTop: 0, fontSize: '0.9rem' }}>
-        Instant itemized quote from your enquiry. Non-binding — our staff issue the formal
+        Instant itemized quote from your enquiry. Non-binding. Our staff issue the formal
         pro-forma invoice.
       </p>
 
@@ -235,7 +235,7 @@ export function QuotePage() {
               month: 'short',
               day: 'numeric'
             })}
-            . Indicative quote — final pricing confirmed on order.
+            . Indicative quote. Final pricing confirmed on order.
           </div>
         </div>
       </div>

@@ -3,7 +3,7 @@ import type { Database } from '@/lib/powersync/AppSchema';
 
 /**
  * Reactive inventory query against the local PowerSync SQLite database.
- * Updates automatically as synced data changes — no network round-trip.
+ * Updates automatically as synced data changes. No network round-trip..
  */
 export function useInventory() {
   const { data: assets, isLoading, error } = useQuery<Database['inventory_assets']>(

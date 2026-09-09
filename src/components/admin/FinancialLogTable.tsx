@@ -54,7 +54,7 @@ export function FinancialLogTable({ logs }: { logs: FinancialLog[] }) {
               <td>{log.currency}</td>
               <td style={{ fontWeight: 600 }}>{formatMoney(log.amount, log.currency ?? 'USD')}</td>
               <td>{labelFor(log.payment_method ?? '')}</td>
-              <td>{log.reference_number ?? '—'}</td>
+              <td>{log.reference_number ?? '-'}</td>
             </tr>
           ))}
         </tbody>

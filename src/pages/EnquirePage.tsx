@@ -46,7 +46,7 @@ export function EnquirePage() {
     <div style={{ maxWidth: 720, margin: '0 auto' }}>
       <h1 style={{ fontSize: '1.5rem', marginBottom: 4 }}>Find your machine</h1>
       <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
-        Two questions. We match live stock — nothing invented.
+        Two questions. We match live stock. Nothing invented.
       </p>
 
       <ol
@@ -176,7 +176,7 @@ export function EnquirePage() {
           ) : (
             <div className="empty-state">
               <h3>No matches in live stock</h3>
-              <p>We source on request — send us the job on WhatsApp.</p>
+              <p>We source on request. Send us the job on WhatsApp.</p>
               <Button
                 onClick={() =>
                   openFinderWhatsApp({ jobTitle, budgetTitle, picks: [] })

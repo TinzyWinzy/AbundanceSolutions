@@ -117,7 +117,7 @@ export function FinancialLogForm({ assets, sites, onDone }: FinancialLogFormProp
 
       <Field label="Equipment">
         <Select value={form.assetId} onChange={(e) => set('assetId')(e.target.value)}>
-          <option value="">— None —</option>
+          <option value="">None</option>
           {assets.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -128,7 +128,7 @@ export function FinancialLogForm({ assets, sites, onDone }: FinancialLogFormProp
 
       <Field label="Site">
         <Select value={form.siteId} onChange={(e) => set('siteId')(e.target.value)}>
-          <option value="">— Unassigned —</option>
+          <option value="">Unassigned</option>
           {sites.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}

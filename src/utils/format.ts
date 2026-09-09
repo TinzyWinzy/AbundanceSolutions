@@ -13,9 +13,9 @@ export function formatMoney(amount: number | null | undefined, currency: string)
 }
 
 export function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
+  if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleString('en-ZW', {
     year: 'numeric',
     month: 'short',

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useCatalog } from '@/hooks/useCatalog';
+import { useUI } from '@/stores/ui';
 import { ProductCard } from '@/components/showroom/ProductCard';
 
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER ?? '263719450765';
@@ -8,58 +9,64 @@ const CATEGORIES = [
   {
     slug: 'generators',
     name: 'Generators',
-    blurb: '10KVA to 300KVA diesel workhorses',
+    blurb: 'Diesel power from 10KVA to 300KVA',
     image: '/images/machinery/generators-flyer.jpg'
   },
   {
     slug: 'earthmoving',
     name: 'Excavators & Loaders',
-    blurb: 'Brand-new machines, 000hrs on the clock',
+    blurb: 'Excavators and loaders, new with zero hours',
     image: '/images/machinery/dezzi-excavator.jpg'
   },
   {
     slug: 'concrete-mixers',
     name: 'Concrete Mixers',
-    blurb: 'Site mixing that keeps up with your pour',
+    blurb: 'Keep every pour on schedule',
     image: '/images/machinery/concrete-mixer.jpg'
   },
   {
     slug: 'power-tools',
     name: 'Power Tools',
-    blurb: 'INGCO grinders, drills, cutters & pumps',
+    blurb: 'INGCO grinders, drills, cutters and pumps',
     image: '/images/machinery/angle-grinder-42v.jpg'
   }
 ];
 
 const STEPS = [
   {
-    title: 'Browse the yard',
-    text: 'Real photos of machines on the ground. Prices in USD and ZiG, no sign-up.'
+    title: 'Find your machine',
+    text: 'Browse the store or answer two questions in the Finder.'
   },
   {
-    title: 'Send your details',
-    text: 'Name and phone number only. Your order is saved with a reference number.'
+    title: 'Send two details',
+    text: 'Name and phone number. Your order is saved with a reference.'
   },
   {
     title: 'Confirm on WhatsApp',
-    text: 'One tap opens WhatsApp with your order ready to send — works on social bundles.'
+    text: 'One tap opens the chat with everything filled in, even on a social bundle.'
   }
 ];
 
 const TRUST = [
-  'Real photos of actual stock — what you see is on the ground',
-  'Prices in USD and ZiG, VAT invoices available',
-  'Order over WhatsApp, even on a WhatsApp-only bundle',
-  'Pro-forma invoices with 15% VAT for your books'
+  'Photographed in our yard. What you see is what is here.',
+  'Priced in USD and ZiG, with VAT invoices for your books.',
+  'Order over WhatsApp, even on a WhatsApp-only bundle.',
+  'Every online order carries a reference number.'
 ];
 
 export function LandingPage() {
   const { assets, loading } = useCatalog(undefined);
+  const { bandwidthSaver } = useUI();
   const featured = assets.slice(0, 4);
+  const reducedMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const showVideo = !bandwidthSaver && !reducedMotion;
 
   return (
     <div>
-      {/* HERO — full bleed */}
+      {/* HERO: full bleed video */}
       <section
         style={{
           position: 'relative',
@@ -73,17 +80,37 @@ export function LandingPage() {
           background: '#0f172a'
         }}
       >
-        <img
-          src="/images/hero.jpg"
-          alt="Wheel loader ready for work at the Abundance Solutions yard"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover'
-          }}
-        />
+        {showVideo ? (
+          <video
+            src="/video/hero.mp4"
+            poster="/images/hero.jpg"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+          />
+        ) : (
+          <img
+            src="/images/hero.jpg"
+            alt="Wheel loader ready for work at the Abundance Solutions yard"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+          />
+        )}
         <div
           style={{
             position: 'absolute',
@@ -114,11 +141,11 @@ export function LandingPage() {
               ZIMBABWE · HEAVY MACHINERY & TOOLS
             </div>
             <h1 style={{ margin: '0 0 8px', fontSize: '2.4rem', lineHeight: 1.05 }}>
-              Site-ready machinery. Enquire over WhatsApp.
+              Heavy machines. Honest prices.
             </h1>
             <p style={{ margin: '0 0 18px', opacity: 0.92, fontSize: '1.05rem' }}>
-              Excavators, generators, mixers and INGCO power tools — real stock, real prices,
-              no data-heavy browsing.
+              Excavators, generators, mixers and INGCO tools, photographed in our own yard
+              and priced in USD and ZiG. Light to browse, one tap to order on WhatsApp.
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link
@@ -159,9 +186,9 @@ export function LandingPage() {
 
       {/* CATEGORIES */}
       <section style={{ marginTop: 32 }}>
-        <h2 style={{ fontSize: '1.3rem', margin: '0 0 4px' }}>Shop by category</h2>
+        <h2 style={{ fontSize: '1.3rem', margin: '0 0 4px' }}>Shop the yard</h2>
         <p style={{ color: 'var(--text-muted)', margin: '0 0 14px' }}>
-          Straight to the machines — no endless menus.
+          Pick a lane. Real photos and real prices on everything.
         </p>
         <div
           style={{
@@ -253,9 +280,9 @@ export function LandingPage() {
             marginBottom: 14
           }}
         >
-          <h2 style={{ fontSize: '1.3rem', margin: 0 }}>Featured machines</h2>
+          <h2 style={{ fontSize: '1.3rem', margin: 0 }}>Fresh on the yard</h2>
           <Link to="/store" style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-            View all →
+            See the full store →
           </Link>
         </div>
         {loading ? (
@@ -274,9 +301,9 @@ export function LandingPage() {
         className="card"
         style={{ marginTop: 32, padding: 24, textAlign: 'center', background: '#0f172a', color: '#fff', border: 'none' }}
       >
-        <h2 style={{ margin: '0 0 6px' }}>Need a machine on site this week?</h2>
+        <h2 style={{ margin: '0 0 6px' }}>Need iron on site this week?</h2>
         <p style={{ opacity: 0.85, margin: '0 0 16px' }}>
-          Send us your requirement — we respond on WhatsApp, prices in USD or ZiG.
+          Tell us the job. We confirm availability, price and delivery on WhatsApp.
         </p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link to="/store" className="btn" style={{ background: 'var(--primary)', color: '#fff' }}>

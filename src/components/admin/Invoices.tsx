@@ -82,7 +82,7 @@ export function Invoices({ assets }: { assets: InventoryAsset[] }) {
             </span>
           ) : (
             <span style={{ color: 'var(--danger)' }}>
-              Not set — set the day&apos;s official rate before issuing invoices.
+              Not set. Set the day&apos;s official rate before issuing invoices.
             </span>
           )}
         </div>

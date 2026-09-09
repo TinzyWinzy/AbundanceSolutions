@@ -7,7 +7,7 @@ export function BandwidthToggle() {
     <button
       className={`icon-btn${bandwidthSaver ? ' on' : ''}`}
       onClick={toggleBandwidthSaver}
-      title={bandwidthSaver ? 'Data saver on — tap for full images' : 'Save mobile data — tap to hide heavy images'}
+      title={bandwidthSaver ? 'Data saver on: tap for full images' : 'Save mobile data : tap to hide heavy images'}
       aria-pressed={bandwidthSaver}
       aria-label="Toggle data saver"
     >

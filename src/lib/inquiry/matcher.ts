@@ -36,7 +36,7 @@ export type Budget = 'under500' | 'mid' | 'over5k' | 'any';
 
 export const BUDGETS: { value: Budget; title: string; hint: string }[] = [
   { value: 'under500', title: 'Under $500', hint: 'Tools & attachments' },
-  { value: 'mid', title: '$500 – $5,000', hint: 'Small plant & pumps' },
+  { value: 'mid', title: '$500 - $5,000', hint: 'Small plant & pumps' },
   { value: 'over5k', title: 'Over $5,000', hint: 'Heavy machines' },
   { value: 'any', title: 'Just show me everything', hint: 'Full range' }
 ];

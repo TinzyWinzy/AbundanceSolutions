@@ -175,9 +175,9 @@ function SyncCard() {
 
   const dot = !connected ? '#f59e0b' : error ? '#dc2626' : syncing ? '#16a34a' : '#16a34a';
   const label = !connected
-    ? 'Offline — changes queue locally'
+    ? 'Offline: changes queue locally'
     : error
-      ? 'Sync error — working locally'
+      ? 'Sync error: working locally'
       : syncing
         ? 'Syncing…'
         : 'Synced';

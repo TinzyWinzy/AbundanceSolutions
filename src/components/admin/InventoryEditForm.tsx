@@ -129,7 +129,7 @@ export function InventoryEditForm({ asset, categories, sites, onDone }: Inventor
 
       <Field label="Category">
         <Select value={form.categoryId} onChange={(e) => set('categoryId')(e.target.value)}>
-          <option value="">— Select —</option>
+          <option value="">Select…</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -197,7 +197,7 @@ export function InventoryEditForm({ asset, categories, sites, onDone }: Inventor
 
       <Field label="Site">
         <Select value={form.siteId} onChange={(e) => set('siteId')(e.target.value)}>
-          <option value="">— Unassigned —</option>
+          <option value="">Unassigned</option>
           {sites.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}

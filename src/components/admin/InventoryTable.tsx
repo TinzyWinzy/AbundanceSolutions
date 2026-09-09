@@ -105,8 +105,8 @@ export function InventoryTable({
                   </span>
                 ) : null}
               </td>
-              <td>{asset.price_usd != null ? formatUSD(asset.price_usd) : '—'}</td>
-              <td>{asset.price_zig != null ? `ZiG ${asset.price_zig.toLocaleString()}` : '—'}</td>
+              <td>{asset.price_usd != null ? formatUSD(asset.price_usd) : '-'}</td>
+              <td>{asset.price_zig != null ? `ZiG ${asset.price_zig.toLocaleString()}` : '-'}</td>
               <td>
                 <button
                   className="btn btn-ghost"

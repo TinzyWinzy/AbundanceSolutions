@@ -106,7 +106,7 @@ export function StorePage() {
       ) : query && visible.length === 0 ? (
         <div className="empty-state">
           <h3>No matches for “{query}”</h3>
-          <p>Try a different term, or WhatsApp us — we source on request.</p>
+          <p>Try a different term, or WhatsApp us. We source on request.</p>
         </div>
       ) : (
         <ProductGrid assets={visible} />

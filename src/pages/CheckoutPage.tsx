@@ -55,7 +55,7 @@ export function CheckoutPage() {
       return;
     }
     if (!navigator.onLine) {
-      setError('You are offline. Reconnect to place your order — your cart is saved.');
+      setError('You are offline. Reconnect to place your order. Your cart is saved.');
       return;
     }
 
@@ -124,7 +124,7 @@ export function CheckoutPage() {
           {result.totalZig != null ? ` · ZiG ${result.totalZig.toLocaleString()}` : ''}
         </p>
         <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-          Your order is saved. One tap sends it to us on WhatsApp — we confirm availability and
+          Your order is saved. One tap sends it to us on WhatsApp. We confirm availability and
           delivery from there.
         </p>
         <Button block onClick={sendWhatsApp}>

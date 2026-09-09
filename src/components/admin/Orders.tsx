@@ -101,7 +101,7 @@ export function Orders({
                   onClick={() => setSelectedId(order.id)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <td style={{ fontWeight: 600 }}>{order.reference ?? '—'}</td>
+                  <td style={{ fontWeight: 600 }}>{order.reference ?? '-'}</td>
                   <td>{order.customer_name}</td>
                   <td>{formatUSD(order.total_usd)}</td>
                   <td>

@@ -135,7 +135,7 @@ export function Team() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="Site">
                 <Select value={assignSiteId} onChange={(e) => setAssignSiteId(e.target.value)}>
-                  <option value="">— Select —</option>
+                  <option value="">Select…</option>
                   {sites.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -145,7 +145,7 @@ export function Team() {
               </Field>
               <Field label="Staff">
                 <Select value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)}>
-                  <option value="">— Select —</option>
+                  <option value="">Select…</option>
                   {profiles.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.full_name} ({p.role})

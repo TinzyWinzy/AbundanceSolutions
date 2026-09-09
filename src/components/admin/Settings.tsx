@@ -95,7 +95,7 @@ export function Settings() {
           />
         </Field>
         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 12 }}>
-          Base currency: {organization.currency} (contact support to change — it affects all
+          Base currency: {organization.currency} (contact support to change: it affects all
           reporting).
         </div>
         {error ? <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{error}</p> : null}
